@@ -1,23 +1,33 @@
 var canvas = document.getElementById("canvas");
 var context = canvas.getContext("2d");
 
-canvas.width  = window.innerWidth;
-canvas.height = window.innerHeight;
-
 var scale = 2;
 var C = 16 * scale;
 var R = 9 * scale;
+var cellSize = screen.height / R;
+var numXCells;
+var numYCells;
+var xScale;
+var yScale;
 
-drawGrid();
+resizeGrid();
+//console.log("Screen: %d x %d, Window: %d x %d", screen.width, screen.height, window.innerWidth, window.innerHeight);
 
-function drawGrid() {
+drawGrid(xScale, yScale);
+
+//console.log("(%d, %d)", canvas.width / C, canvas.height / R)
+
+function drawGrid(cellXScale, cellYScale) {
     context.lineWidth = 5;
     context.strokeStyle = "black";
+
+    cellX = cellSize * cellXScale;
+    cellY = cellSize * cellYScale;
     
-    for (var c = 0; c < C; c++) {
-        for (var r = 0; r < R; r++) {
+    for (var c = 0; c * cellX < canvas.width; c++) {
+        for (var r = 0; r * cellY < canvas.height; r++) {
             context.beginPath();
-            context.rect(c * canvas.width / C, r * canvas.height / R, canvas.width / C, canvas.height / R);
+            context.rect(c * cellX, r * cellY, cellX, cellY);
             context.stroke();
         }
     }
@@ -42,7 +52,7 @@ function shiftCanvas(shiftX, shiftY) {
     context.globalCompositeOperation = "copy";
     context.drawImage(canvas, shiftX, shiftY);
     context.globalCompositeOperation = "source-over";
-    drawGrid();
+    drawGrid(1);
 }
 
 document.onkeydown = function shiftView(event) {
@@ -61,4 +71,18 @@ document.onkeydown = function shiftView(event) {
             shiftCanvas(-canvas.width / 2, 0);
             break;
     }
+}
+
+window.onresize = function refreshGrid(event) {
+    resizeGrid();
+    drawGrid(xScale, yScale);
+}
+
+function resizeGrid(event) {
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight;
+    numXCells = Math.floor(canvas.width / cellSize);
+    numYCells = Math.floor(canvas.height / cellSize);
+    xScale = canvas.width / cellSize / numXCells;
+    yScale = canvas.height / cellSize / numYCells;
 }
