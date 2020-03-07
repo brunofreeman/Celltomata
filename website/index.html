@@ -2,9 +2,29 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Tile</title>
+    <title>Tile Game</title>
     <link rel="stylesheet" type="text/css" href="styles/styles.css">
 </head>
 <body>
+    <canvas id="canvas"></canvas>
+    <script>
+        var canvas = document.getElementById("canvas");
+        var context = canvas.getContext("2d");
+        canvas.width  = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        var C = 32;
+        var R = 18;
+        for (var c = 0; c < C; c++) {
+            for (var r = 0; r < R; r++) {
+                context.beginPath();
+                context.rect(c * canvas.width / C, r * canvas.height / R, canvas.width / C, canvas.height / R);
+                context.lineWidth = 5;
+                context.strokeStyle = 'black';
+                context.stroke();
+            }
+        }
+    </script>
+  </body>
 </body>
 </html>
