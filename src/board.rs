@@ -1,21 +1,21 @@
 static ALL_OFFSETS: [(isize, isize); 8] = [
-    (-1, -1),
-    (0, -1),
-    (1, -1),
     (-1, 0),
+    (0, -1),
     (1, 0),
-    (-1, 1),
     (0, 1),
+    (-1, -1),
+    (1, -1),
     (1, 1),
+    (-1, 1),
 ];
-static ORTH_OFFSETS: [(isize, isize); 4] = [(0, -1), (-1, 0), (1, 0), (0, 1)];
+// static ORTH_OFFSETS: [(isize, isize); 4] = [(0, -1), (-1, 0), (1, 0), (0, 1)];
 
 const X_SIZE: usize = 10;
 const Y_SIZE: usize = 10;
 
-use std::fmt::{Formatter, self, Write};
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet, VecDeque};
+use std::fmt::{self, Formatter, Write};
 use uuid::Uuid;
 
 #[derive(Clone)]
@@ -30,7 +30,7 @@ pub struct Board {
 }
 
 impl fmt::Display for Board {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result { 
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let mut s = String::new();
         for y in 0..Y_SIZE {
             for x in 0..X_SIZE {
@@ -71,7 +71,7 @@ pub enum TileType {
 }
 
 impl fmt::Display for TileType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result { 
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
         match self {
             TileType::Base => "b",
             TileType::Spawner => "S",
@@ -80,7 +80,8 @@ impl fmt::Display for TileType {
             TileType::Guard => "G",
             TileType::Attacker => "A",
             TileType::Queen => "Q",
-        }.fmt(f)
+        }
+        .fmt(f)
     }
 }
 
@@ -110,7 +111,7 @@ impl Board {
         }
     }
 
-    fn get_neighbor_position(
+    fn adj_position(
         &self,
         Position { x, y }: Position,
         (dx, dy): (isize, isize),
@@ -138,24 +139,24 @@ impl Board {
         }
     }
 
-    fn get_neighbor(&self, position: Position, offset: (isize, isize)) -> Option<Option<Unit>> {
-        self.get_neighbor_position(position, offset)
+    fn adj_unit(&self, position: Position, offset: (isize, isize)) -> Option<Option<Unit>> {
+        self.adj_position(position, offset)
             .map(|Position { x, y }| self.grid[y][x])
     }
 
-    pub fn get_unit(&self, Position { x, y }: Position) -> Option<Unit> {
+    pub fn get(&self, Position { x, y }: Position) -> Option<Unit> {
         self.grid[y][x]
     }
 
-    pub fn set_unit(&mut self, position: Position, unit: Unit) {
-        self.delete_unit(position);
+    pub fn set(&mut self, position: Position, unit: Unit) {
+        self.delete(position);
         self.grid[position.y][position.x] = Some(unit);
         get_mut_or_put(&mut self.types, unit.tile, || HashSet::new()).insert(position);
         get_mut_or_put(&mut self.teams, unit.team, || HashSet::new()).insert(position);
     }
 
-    pub fn delete_unit(&mut self, position: Position) {
-        self.get_unit(position).map(|unit| {
+    pub fn delete(&mut self, position: Position) {
+        self.get(position).map(|unit| {
             self.types
                 .get_mut(&unit.tile)
                 .map(|set| set.remove(&position));
@@ -166,17 +167,20 @@ impl Board {
         self.grid[position.y][position.x] = None;
     }
 
-    pub fn next_gen(&mut self) {
+    pub fn next(&mut self) {
         let mut new_board = self.clone();
 
         if let Some(vec) = self.types.get(&TileType::Queen) {
             for &queen_pos in vec {
-                if let Some(base_pos) = self.find_nearest_unoccupied_position(queen_pos) {
-                    new_board.set_unit(base_pos, Unit {
-                        tile: TileType::Base,
-                        team: Uuid::nil(),
-                        hp: 3
-                    })
+                if let Some(base_pos) = self.nearest_unoccupied_position(queen_pos) {
+                    new_board.set(
+                        base_pos,
+                        Unit {
+                            tile: TileType::Base,
+                            team: Uuid::nil(),
+                            hp: 3,
+                        },
+                    )
                 }
             }
         }
@@ -185,25 +189,30 @@ impl Board {
     }
 
     // BFS the grid
-    fn find_nearest_unoccupied_position(&self, position: Position) -> Option<Position> {
+    fn nearest_unoccupied_position(&self, position: Position) -> Option<Position> {
         let mut queue = VecDeque::new();
         let mut seen = HashSet::new();
 
         queue.push_back(position);
 
         while let Some(position) = queue.pop_front() {
-            if self.get_unit(position) == None {
+            if self.get(position) == None {
                 return Some(position);
             }
 
-            for &offset in ALL_OFFSETS.iter() {
-                self.get_neighbor_position(position, offset)
-                    .map(|p| {
-                        if !seen.contains(&p) {
-                            queue.push_back(p);
-                            seen.insert(p);
-                        }
-                    });
+            let mut dirs = ALL_OFFSETS;
+            use rand::seq::SliceRandom;
+            let mut rng = rand::thread_rng();
+            dirs[0..4].shuffle(&mut rng);
+            dirs[4..8].shuffle(&mut rng);
+
+            for &offset in dirs.iter() {
+                self.adj_position(position, offset).map(|p| {
+                    if !seen.contains(&p) {
+                        queue.push_back(p);
+                        seen.insert(p);
+                    }
+                });
             }
         }
 
