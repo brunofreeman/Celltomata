@@ -8,14 +8,18 @@ var scale = 2;
 var C = 16 * scale;
 var R = 9 * scale;
 
-context.lineWidth = 5;
-context.strokeStyle = "black";
+drawGrid();
 
-for (var c = 0; c < C; c++) {
-    for (var r = 0; r < R; r++) {
-        context.beginPath();
-        context.rect(c * canvas.width / C, r * canvas.height / R, canvas.width / C, canvas.height / R);
-        context.stroke();
+function drawGrid() {
+    context.lineWidth = 5;
+    context.strokeStyle = "black";
+    
+    for (var c = 0; c < C; c++) {
+        for (var r = 0; r < R; r++) {
+            context.beginPath();
+            context.rect(c * canvas.width / C, r * canvas.height / R, canvas.width / C, canvas.height / R);
+            context.stroke();
+        }
     }
 }
 
@@ -32,4 +36,29 @@ function fillSquare(event) {
     context.fill();
     context.stroke();
     
+}
+
+function shiftCanvas(shiftX, shiftY) {
+    context.globalCompositeOperation = "copy";
+    context.drawImage(canvas, shiftX, shiftY);
+    context.globalCompositeOperation = "source-over";
+    drawGrid();
+}
+
+document.onkeydown = function shiftView(event) {
+    //console.log("%s key pressed", event.code);
+    switch (event.code) {
+        case "ArrowUp":
+            shiftCanvas(0, canvas.height / 2);
+            break;
+        case "ArrowDown":
+            shiftCanvas(0, -canvas.height / 2);
+            break;
+        case "ArrowLeft":
+            shiftCanvas(canvas.width / 2, 0);
+            break;
+        case "ArrowRight":
+            shiftCanvas(-canvas.width / 2, 0);
+            break;
+    }
 }
