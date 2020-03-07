@@ -1,5 +1,3 @@
-#![allow(unused)]
-
 static ALL_OFFSETS: [(isize, isize); 8] = [
     (-1, -1),
     (0, -1),
@@ -12,30 +10,56 @@ static ALL_OFFSETS: [(isize, isize); 8] = [
 ];
 static ORTH_OFFSETS: [(isize, isize); 4] = [(0, -1), (-1, 0), (1, 0), (0, 1)];
 
-const X_SIZE: usize = 100;
-const Y_SIZE: usize = 100;
+const X_SIZE: usize = 10;
+const Y_SIZE: usize = 10;
 
-use std::collections::{HashMap, VecDeque};
+use std::fmt::{Formatter, self, Write};
+use std::cell::RefCell;
+use std::collections::{HashMap, HashSet, VecDeque};
 use uuid::Uuid;
 
+#[derive(Clone)]
 pub struct Board {
     grid: [[Option<Unit>; X_SIZE]; Y_SIZE],
 
     // Map between team UUID and positions of their cells.
-    teams: HashMap<Uuid, Vec<Position>>,
+    teams: HashMap<Uuid, HashSet<Position>>,
 
     // Map between the tiles and their positions.
-    types: HashMap<TileType, Vec<Position>>,
+    types: HashMap<TileType, HashSet<Position>>,
 }
 
-#[derive(Copy, Clone)]
+impl fmt::Display for Board {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result { 
+        let mut s = String::new();
+        for y in 0..Y_SIZE {
+            for x in 0..X_SIZE {
+                if let Some(unit) = self.grid[y][x] {
+                    write!(&mut s, "{}", unit);
+                } else {
+                    write!(&mut s, " ");
+                }
+            }
+            s.push('\n');
+        }
+        fmt::Display::fmt(&s, f)
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub struct Unit {
-    tile: TileType,
-    team: Uuid,
-    hp: usize,
+    pub tile: TileType,
+    pub team: Uuid,
+    pub hp: usize,
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
+impl fmt::Display for Unit {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        self.tile.fmt(f)
+    }
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Hash)]
 pub enum TileType {
     Base,
     Spawner,
@@ -46,6 +70,20 @@ pub enum TileType {
     Queen,
 }
 
+impl fmt::Display for TileType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result { 
+        match self {
+            TileType::Base => "b",
+            TileType::Spawner => "S",
+            TileType::Feeder => "F",
+            TileType::Bolsterer => "B",
+            TileType::Guard => "G",
+            TileType::Attacker => "A",
+            TileType::Queen => "Q",
+        }.fmt(f)
+    }
+}
+
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub struct Metadata {
     target_pos: Position,
@@ -53,8 +91,8 @@ pub struct Metadata {
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
 pub struct Position {
-    x: usize,
-    y: usize,
+    pub x: usize,
+    pub y: usize,
 }
 
 impl Position {
@@ -74,26 +112,26 @@ impl Board {
 
     fn get_neighbor_position(
         &self,
-        position: Position,
-        offset: (isize, isize),
+        Position { x, y }: Position,
+        (dx, dy): (isize, isize),
     ) -> Option<Position> {
-        if offset.0 < 0 && position.x == 0
-            || offset.1 < 0 && position.y == 0
-            || offset.0 > 0 && position.x == X_SIZE - 1
-            || offset.1 > 0 && position.y == Y_SIZE - 1
+        if dx < 0 && x == 0
+            || dy < 0 && y == 0
+            || dx > 0 && x == X_SIZE - 1
+            || dy > 0 && y == Y_SIZE - 1
         {
             None
         } else {
-            let x = if offset.0 < 0 {
-                position.x - offset.0 as usize
+            let x = if dx < 0 {
+                x - -dx as usize
             } else {
-                position.x + offset.0 as usize
+                x + dx as usize
             };
 
-            let y = if offset.1 < 0 {
-                position.y - offset.1 as usize
+            let y = if dy < 0 {
+                y - -dy as usize
             } else {
-                position.y + offset.1 as usize
+                y + dy as usize
             };
 
             Some(Position::new(x, y))
@@ -102,25 +140,79 @@ impl Board {
 
     fn get_neighbor(&self, position: Position, offset: (isize, isize)) -> Option<Option<Unit>> {
         self.get_neighbor_position(position, offset)
-            .map(|Position { x, y }| self.grid[x][y])
+            .map(|Position { x, y }| self.grid[y][x])
     }
 
-    pub fn next_gen(&self) -> Self {
-        let mut board = Board::new();
-
-        use rand::{thread_rng, Rng};
-        rand::thread_rng().gen_range(0, 5);
-
-        // self.types.get(&TileType::Queen);
-        unimplemented!()
+    pub fn get_unit(&self, Position { x, y }: Position) -> Option<Unit> {
+        self.grid[y][x]
     }
 
-    fn find_nearest_unoccupied_cell(&self, position: Position) {
+    pub fn set_unit(&mut self, position: Position, unit: Unit) {
+        self.delete_unit(position);
+        self.grid[position.y][position.x] = Some(unit);
+        get_mut_or_put(&mut self.types, unit.tile, || HashSet::new()).insert(position);
+        get_mut_or_put(&mut self.teams, unit.team, || HashSet::new()).insert(position);
+    }
+
+    pub fn delete_unit(&mut self, position: Position) {
+        self.get_unit(position).map(|unit| {
+            self.types
+                .get_mut(&unit.tile)
+                .map(|set| set.remove(&position));
+            self.teams
+                .get_mut(&unit.team)
+                .map(|set| set.remove(&position));
+        });
+        self.grid[position.y][position.x] = None;
+    }
+
+    pub fn next_gen(&mut self) {
+        let mut new_board = self.clone();
+
+        if let Some(vec) = self.types.get(&TileType::Queen) {
+            for &queen_pos in vec {
+                if let Some(base_pos) = self.find_nearest_unoccupied_position(queen_pos) {
+                    new_board.set_unit(base_pos, Unit {
+                        tile: TileType::Base,
+                        team: Uuid::nil(),
+                        hp: 3
+                    })
+                }
+            }
+        }
+
+        *self = new_board;
+    }
+
+    fn find_nearest_unoccupied_position(&self, position: Position) -> Option<Position> {
         let mut queue = VecDeque::new();
 
         queue.push_back(position);
-        unimplemented!()
+
+        while let Some(position) = queue.pop_front() {
+            if self.get_unit(position) == None {
+                return Some(position);
+            }
+
+            for &offset in ALL_OFFSETS.iter() {
+                self.get_neighbor_position(position, offset)
+                    .map(|p| queue.push_back(p));
+            }
+        }
+
+        None
     }
+}
+
+fn get_mut_or_put<'m, K, V, F>(map: &'m mut HashMap<K, V>, k: K, f: F) -> &'m mut V
+where
+    F: FnOnce() -> V,
+    K: Eq + std::hash::Hash + Copy,
+{
+    if !map.contains_key(&k) {
+        map.insert(k, f());
+    }
+    map.get_mut(&k).unwrap()
 }
 
 /*
