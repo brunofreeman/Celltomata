@@ -1,10 +1,12 @@
 var canvas = document.getElementById("canvas");
-var context = canvas.getContext("2d");
+var ctx = canvas.getContext("2d");
 
 var scale = 2;
 var C = 16 * scale;
 var R = 9 * scale;
 var cellSize = screen.height / R;
+var cellLineWidth = cellSize / 10;
+console.log("Cell size: %d", cellSize);
 var cellCounts;
 var scales;
 var cellDims;
@@ -36,14 +38,14 @@ function updateCellDims() {
 }
 
 function drawGrid() {
-    context.lineWidth = 5;
-    context.strokeStyle = "black";
+    ctx.lineWidth = cellLineWidth;
+    ctx.strokeStyle = "black";
     
     for (var c = 0; c < cellCounts.x; c++) {
         for (var r = 0; r < cellCounts.y; r++) {
-            context.beginPath();
-            context.rect(c * cellDims.x, r * cellDims.y, cellDims.x, cellDims.y);
-            context.stroke();
+            ctx.beginPath();
+            ctx.rect(c * cellDims.x, r * cellDims.y, cellDims.x, cellDims.y);
+            ctx.stroke();
         }
     }
 }
@@ -57,39 +59,48 @@ function fillCells() {
         {x: 10, y: 5, type: "queen", color: "red"}
     ]
 
-    context.lineWidth = 5;
-    context.strokeStyle = "black";
-    
+    ctx.lineWidth = cellLineWidth;
+    ctx.strokeStyle = "black";
+    ctx.font = `${cellSize / 3.5}px Arial`;
+    ctx.textAlign = "center"; 
+    ctx.textBaseline = "middle";//**
+
+    var x, y;
     for (var i = 0; i < cells.length; i++) {
         //console.log("Drawing %o", cells[i]);
-        context.fillStyle = cells[i].color;
-        context.beginPath();
-        context.rect(cells[i].x * cellDims.x, cells[i].y * cellDims.y, cellDims.x, cellDims.y);
-        context.fill();
-        context.stroke();
+        x = cells[i].x * cellDims.x;
+        y = cells[i].y * cellDims.y;
+
+        ctx.beginPath();
+        ctx.rect(x, y, cellDims.x, cellDims.y);
+        ctx.fillStyle = cells[i].color;
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "white";
+        ctx.fillText(cells[i].type, x + (cellSize / 2), y + (cellSize / 2));
     }
 }
 
 document.onclick = function fillSquare(event) {
     //console.log("Begin fillSquare()");
-    context.lineWidth = 5;
-    context.strokeStyle = "black";
-    context.fillStyle = "green";
+    ctx.lineWidth = cellLineWidth;
+    ctx.strokeStyle = "black";
+    ctx.fillStyle = "green";
     var x = event.clientX;
     var y = event.clientY;
     x = x - (x % (cellDims.x));
     y = y - (y % (cellDims.y));
     //console.log("(%d, %d) --> (%d, %d)", x, y, c, r);
-    context.beginPath();
-    context.rect(x, y, cellDims.x, cellDims.y);
-    context.fill();
-    context.stroke();
+    ctx.beginPath();
+    ctx.rect(x, y, cellDims.x, cellDims.y);
+    ctx.fill();
+    ctx.stroke();
 }
 
 function shiftCanvas(shiftX, shiftY) {
-    context.globalCompositeOperation = "copy";
-    context.drawImage(canvas, shiftX, shiftY);
-    context.globalCompositeOperation = "source-over";
+    ctx.globalCompositeOperation = "copy";
+    ctx.drawImage(canvas, shiftX, shiftY);
+    ctx.globalCompositeOperation = "source-over";
     refreshGrid();
 }
 
