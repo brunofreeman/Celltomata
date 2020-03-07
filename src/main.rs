@@ -9,7 +9,7 @@ fn main() {
     let mut board = board::Board::new();
 
     board.set_unit(board::Position { x: 5, y: 5 }, Unit { hp: 1, tile: TileType::Queen, team: Uuid::nil() });
-    for _ in 0..6 {
+    for _ in 0..10 {
         board.next_gen();
     }
 

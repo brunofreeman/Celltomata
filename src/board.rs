@@ -184,8 +184,10 @@ impl Board {
         *self = new_board;
     }
 
+    // BFS the grid
     fn find_nearest_unoccupied_position(&self, position: Position) -> Option<Position> {
         let mut queue = VecDeque::new();
+        let mut seen = HashSet::new();
 
         queue.push_back(position);
 
@@ -196,7 +198,12 @@ impl Board {
 
             for &offset in ALL_OFFSETS.iter() {
                 self.get_neighbor_position(position, offset)
-                    .map(|p| queue.push_back(p));
+                    .map(|p| {
+                        if !seen.contains(&p) {
+                            queue.push_back(p);
+                            seen.insert(p);
+                        }
+                    });
             }
         }
 
