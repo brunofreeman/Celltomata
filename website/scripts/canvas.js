@@ -6,7 +6,7 @@ var C = 16 * scale;
 var R = 9 * scale;
 var cellSize = screen.height / R;
 var cellLineWidth = cellSize / 10;
-console.log("Cell size: %d", cellSize);
+//console.log("Cell size: %d", cellSize);
 var cellCounts;
 var scales;
 var cellDims;
@@ -53,15 +53,27 @@ function drawGrid() {
 function fillCells() {
     // cells = [{x (rel. to screen): , y (rel. to screen): , type: , teamColor: }, {}, ...]
     // cells = getCellsFromRust(screen min X coord, screen min Y coord, cellCounts.x, cellCounts.y);
-    cells = [
+    /*var cells = [
         {x: 4, y: 4, type: "queen", color: "green"},
         {x: 5, y: 4, type: "base", color: "green"},
         {x: 10, y: 5, type: "queen", color: "red"}
-    ]
+    ]*/
+    var numCells = 15;
+    var types = ["Q", "b", "F", "S"];
+    var colors = ["red", "green", "blue"];
+    var cells = [];
+    var x, y, type, color;
+    for (var i = 0; i < numCells; i++) {
+        x = Math.floor(Math.random() * cellCounts.x);
+        y = Math.floor(Math.random() * cellCounts.y);
+        type = types[Math.floor(Math.random() * types.length)];
+        color = colors[Math.floor(Math.random() * colors.length)];
+        cells.push({x: x, y: y, type: type, color: color})
+    }
 
     ctx.lineWidth = cellLineWidth;
     ctx.strokeStyle = "black";
-    ctx.font = `${cellSize / 3.5}px Arial`;
+    ctx.font = `${cellSize / 1.5}px Arial`;
     ctx.textAlign = "center"; 
     ctx.textBaseline = "middle";//**
 
