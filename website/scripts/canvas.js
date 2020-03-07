@@ -16,6 +16,7 @@ var cellDims;
 refreshGrid = function() {
     resizeGrid();
     drawGrid();
+    fillCells();
 }
 
 refreshGrid();
@@ -38,8 +39,8 @@ function drawGrid() {
     context.lineWidth = 5;
     context.strokeStyle = "black";
     
-    for (var c = 0; c * cellDims.x < canvas.width; c++) {
-        for (var r = 0; r * cellDims.y < canvas.height; r++) {
+    for (var c = 0; c < cellCounts.x; c++) {
+        for (var r = 0; r < cellCounts.y; r++) {
             context.beginPath();
             context.rect(c * cellDims.x, r * cellDims.y, cellDims.x, cellDims.y);
             context.stroke();
@@ -47,8 +48,30 @@ function drawGrid() {
     }
 }
 
+function fillCells() {
+    // cells = [{x (rel. to screen): , y (rel. to screen): , type: , teamColor: }, {}, ...]
+    // cells = getCellsFromRust(screen min X coord, screen min Y coord, cellCounts.x, cellCounts.y);
+    cells = [
+        {x: 4, y: 4, type: "queen", color: "green"},
+        {x: 5, y: 4, type: "base", color: "green"},
+        {x: 10, y: 5, type: "queen", color: "red"}
+    ]
+
+    context.lineWidth = 5;
+    context.strokeStyle = "black";
+    
+    for (var i = 0; i < cells.length; i++) {
+        //console.log("Drawing %o", cells[i]);
+        context.fillStyle = cells[i].color;
+        context.beginPath();
+        context.rect(cells[i].x * cellDims.x, cells[i].y * cellDims.y, cellDims.x, cellDims.y);
+        context.fill();
+        context.stroke();
+    }
+}
+
 document.onclick = function fillSquare(event) {
-    console.log("Begin fillSquare()");
+    //console.log("Begin fillSquare()");
     context.lineWidth = 5;
     context.strokeStyle = "black";
     context.fillStyle = "green";
