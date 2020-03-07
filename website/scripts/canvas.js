@@ -5,54 +5,69 @@ var scale = 2;
 var C = 16 * scale;
 var R = 9 * scale;
 var cellSize = screen.height / R;
-var numXCells;
-var numYCells;
-var xScale;
-var yScale;
+var cellCounts;
+var scales;
+var cellDims;
 
-resizeGrid();
+
 //console.log("Screen: %d x %d, Window: %d x %d", screen.width, screen.height, window.innerWidth, window.innerHeight);
-
-drawGrid(xScale, yScale);
-
 //console.log("(%d, %d)", canvas.width / C, canvas.height / R)
 
-function drawGrid(cellXScale, cellYScale) {
+refreshGrid = function() {
+    resizeGrid();
+    drawGrid();
+}
+
+refreshGrid();
+
+window.onresize = refreshGrid;
+
+function resizeGrid() {
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight;
+    cellCounts = {x: Math.floor(canvas.width / cellSize), y: Math.floor(canvas.height / cellSize)};
+    scales = {x: canvas.width / cellSize / cellCounts.x, y: canvas.height / cellSize / cellCounts.y};
+    updateCellDims();
+}
+
+function updateCellDims() {
+    cellDims = {x: cellSize * scales.x, y: cellSize * scales.y};
+}
+
+function drawGrid() {
     context.lineWidth = 5;
     context.strokeStyle = "black";
-
-    cellX = cellSize * cellXScale;
-    cellY = cellSize * cellYScale;
     
-    for (var c = 0; c * cellX < canvas.width; c++) {
-        for (var r = 0; r * cellY < canvas.height; r++) {
+    for (var c = 0; c * cellDims.x < canvas.width; c++) {
+        for (var r = 0; r * cellDims.y < canvas.height; r++) {
             context.beginPath();
-            context.rect(c * cellX, r * cellY, cellX, cellY);
+            context.rect(c * cellDims.x, r * cellDims.y, cellDims.x, cellDims.y);
             context.stroke();
         }
     }
 }
 
-context.fillStyle = "green";
-
-function fillSquare(event) {
+document.onclick = function fillSquare(event) {
+    console.log("Begin fillSquare()");
+    context.lineWidth = 5;
+    context.strokeStyle = "black";
+    context.fillStyle = "green";
     var x = event.clientX;
     var y = event.clientY;
-    c = x - (x % (canvas.width / C));
-    r = y - (y % (canvas.height / R));
+    x = x - (x % (cellDims.x));
+    y = y - (y % (cellDims.y));
     //console.log("(%d, %d) --> (%d, %d)", x, y, c, r);
     context.beginPath();
-    context.rect(c, r, canvas.width / C, canvas.height / R);
+    context.rect(x, y, cellDims.x, cellDims.y);
     context.fill();
     context.stroke();
-    
 }
 
 function shiftCanvas(shiftX, shiftY) {
     context.globalCompositeOperation = "copy";
     context.drawImage(canvas, shiftX, shiftY);
     context.globalCompositeOperation = "source-over";
-    drawGrid(1);
+    refreshGrid();
 }
 
 document.onkeydown = function shiftView(event) {
@@ -71,18 +86,4 @@ document.onkeydown = function shiftView(event) {
             shiftCanvas(-canvas.width / 2, 0);
             break;
     }
-}
-
-window.onresize = function refreshGrid(event) {
-    resizeGrid();
-    drawGrid(xScale, yScale);
-}
-
-function resizeGrid(event) {
-    canvas.width  = window.innerWidth;
-    canvas.height = window.innerHeight;
-    numXCells = Math.floor(canvas.width / cellSize);
-    numYCells = Math.floor(canvas.height / cellSize);
-    xScale = canvas.width / cellSize / numXCells;
-    yScale = canvas.height / cellSize / numYCells;
 }
