@@ -10,6 +10,7 @@ var cellLineWidth = cellSize / 10;
 var cellCounts;
 var scales;
 var cellDims;
+var shifting = false;
 
 
 //console.log("Screen: %d x %d, Window: %d x %d", screen.width, screen.height, window.innerWidth, window.innerHeight);
@@ -109,27 +110,46 @@ document.onclick = function fillSquare(event) {
     ctx.stroke();
 }
 
-function shiftCanvas(shiftX, shiftY) {
+function shiftCanvas(shiftX, shiftY, time) {
+    shifting = true;
+    //console.log("shifting: ", shifting);
+    var fps = 30;
+    var frames = fps * time;
+    var interval = setInterval(function() {instantShiftCanvas(shiftX / frames, shiftY / frames)}, time * 1000 / frames);
+    setTimeout(function() {
+        //console.log("Stopping interval");
+        clearInterval(interval);
+        shifting = false;
+        refreshGrid();
+    }, time * 1000);
+}
+
+function instantShiftCanvas(shiftX, shiftY) {
+    //console.log("Shifting");
+    console.log("shift: (%d, %d)", shiftX, shiftY);
     ctx.globalCompositeOperation = "copy";
-    ctx.drawImage(canvas, shiftX, shiftY);
-    ctx.globalCompositeOperation = "source-over";
-    refreshGrid();
+    ctx.drawImage(ctx.canvas, shiftX, shiftY);
+    ctx.globalCompositeOperation = "source-over"
 }
 
 document.onkeydown = function shiftView(event) {
     //console.log("%s key pressed", event.code);
+    //console.log("bool before return:", shifting);
+    if (shifting) return;
+    //console.log("bool after return: ", shifting);
+    var time = 0.4;
     switch (event.code) {
         case "ArrowUp":
-            shiftCanvas(0, canvas.height / 2);
+            shiftCanvas(0, canvas.height / 2, time);
             break;
         case "ArrowDown":
-            shiftCanvas(0, -canvas.height / 2);
+            shiftCanvas(0, -canvas.height / 2, time);
             break;
         case "ArrowLeft":
-            shiftCanvas(canvas.width / 2, 0);
+            shiftCanvas(canvas.width / 2, 0, time);
             break;
         case "ArrowRight":
-            shiftCanvas(-canvas.width / 2, 0);
+            shiftCanvas(-canvas.width / 2, 0, time);
             break;
     }
 }
