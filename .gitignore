@@ -16,4 +16,5 @@ Cargo.lock
 
 .history/
 
-/server_info
+# Folder with server info
+/server
