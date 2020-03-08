@@ -10,7 +10,7 @@ const http = require("http");
 /**
  * Get port from environment and store in Express.
  */
-let port = normalizePort(process.env.PORT || '2000');
+let port = normalizePort(process.env.PORT || '8080');
 app_1.app.set('port', port);
 /**
  * Create HTTP server.
