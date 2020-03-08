@@ -26,7 +26,7 @@ function launchGame() {
     document.getElementById("landing").remove();
     launched = true;
     refreshGrid();
-    document.getElementById("username").innerHTML = username;
+    document.getElementById("username").innerHTML = USERNAME;
 }
 
 
