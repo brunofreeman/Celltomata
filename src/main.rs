@@ -128,7 +128,7 @@ fn make_game_thread(server: Arc<Server>) {
 
             board.write().map(|mut board| {
                 board.next();
-                warn!("{}", board);
+                // warn!("{}", board);
             });
 
             server.broadcast(&Response::GENERATION_PING { gen });

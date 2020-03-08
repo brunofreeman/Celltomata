@@ -33,28 +33,30 @@ var CELL_TYPES = [
     "BASE",
     "SPAWNER",
     "FEEDER",
-    "BOLSTERER",
+    "BOLSTER",
     "GUARD",
-    "ATTACKER"
+    "ATTACK"
 ]
 var cellTypeSelected = CELL_TYPES[0];
-var ENERGY = 50;
+var energy = 50;
 
-var COSTS = {
-    BASE: 1,
-    SPAWNER: 5,
-    FEEDER: 3,
-    BOLSTERER: 3,
-    GUARD: 2,
-    ATTACKER: 3
-};
+var COSTS = [
+    1, //b
+    5, //S
+    3, //F
+    3, //B
+    2, //G
+    3 //A
+];
 
-function resizeLanding() {
+var submitted = false;
+
+/*function resizeLanding() {
     textFit("play-button-text");
 }
 
 function textFit(id) { // Not working
-    /*var elem = document.getElementById(id);
+    /var elem = document.getElementById(id);
     var div = elem.children[0];
     console.log("Elem: %o", elem);
     console.log("Div: %o", div);
@@ -66,11 +68,9 @@ function textFit(id) { // Not working
 
     while( elem.height > div.height) {
         div.style.fontSize = parseInt((div.style.fontsize) + 1) + "px";
-    }
-    console.log("Font size post: %s", div.style.fontSize);*/
-}
-
-resizeLanding();
+    
+    console.log("Font size post: %s", div.style.fontSize);
+}*/
 
 function launchGame() {
     USERNAME = document.getElementById("username-input").value;
@@ -85,6 +85,7 @@ function launchGame() {
 
     document.getElementById("landing").remove();
     document.getElementById("username").innerHTML = USERNAME;
+    document.getElementById("energy").innerHTML = energy;
     loadSelectingInfo();
     launched = true;
 
@@ -122,16 +123,77 @@ function launchGame() {
                 // TODO: update leaderboard
                 refreshLeaderboard(null);
                 break;
+            case "ENERGY_UPDATE":
+                energy = payload.erg;
+                document.getElementById("energy").innerHTML = energy;
+                break;
         }
     };
     refreshLeaderboard(null); // remove when An implements the update
 }
 
+document.onclick = function fillSquare(event) {
+    if (!connected || submitted) return;
+    var x = event.clientX;
+    var y = event.clientY;
+    x = Math.floor(x / cellDims.x);
+    y = Math.floor(y / cellDims.y);
+    cell = {
+        tile: cellTypeSelected,
+        team: UID,
+        pos: {x: x + origin.x, y: y + origin.y}
+    }
+    if (energy - COSTS[CELL_TYPES.indexOf(cellTypeSelected)] >= 0) {
+        fillCell(cell, x, y);
+        submitCell(cell);
+    }
+}
+
+function submitCell(cell) {
+    WS.send(JSON.stringify({
+        type : "PUT",
+        tile : cell.tile,
+        position : {
+            x: cell.pos.x,
+            y: cell.pos.y
+        }
+    }));
+}
+
+function fillCells(payload) {
+    ctx.lineWidth = cellLineWidth;
+    ctx.strokeStyle = "black";
+    ctx.font = `${cellSize / 1.5}px Arial`;
+    ctx.textAlign = "center"; 
+    ctx.textBaseline = "middle";
+
+    for (var y = 0; y < payload.y_size; y++) {
+        for (var x = 0; x < payload.x_size; x++) {
+            fillCell(payload.window[y][x], x, y);       
+        }
+    }
+}
+
+function fillCell(cell, x, y) {
+    if (cell.tile != "EMPTY") {
+        pxX = x * cellDims.x;
+        pxY = y * cellDims.y;
+        ctx.beginPath();
+        ctx.rect(pxX, pxY, cellDims.x, cellDims.y);
+        ctx.stroke();
+        ctx.fillStyle = cell.team == UID ? "green" : "red";
+        ctx.fill();
+        ctx.fillStyle = "white";
+        ctx.fillText(cell.tile[0], pxX + (cellSize / 2), pxY + (cellSize / 2));
+    }
+}
+
 function loadSelectingInfo() {
     siDOM = document.getElementById("selecting-info");
+    siDOM.innerHTML = "";
     for (var i = 0; i < CELL_TYPES.length; i++) {
         var siEntry = document.createElement("LI");
-        siEntry.appendChild(document.createTextNode(CELL_TYPES[i]))
+        siEntry.appendChild(document.createTextNode(`${cellTypeSelected == CELL_TYPES[i] ? "> " : ""}${CELL_TYPES[i]} (Cost: ${COSTS[i]})`))
         siDOM.appendChild(siEntry);
     }
 }
@@ -192,45 +254,6 @@ function requestCells() {
     }));
 }
 
-function fillCells(payload) {
-    ctx.lineWidth = cellLineWidth;
-    ctx.strokeStyle = "black";
-    ctx.font = `${cellSize / 1.5}px Arial`;
-    ctx.textAlign = "center"; 
-    ctx.textBaseline = "middle";
-
-    for (var y = 0; y < payload.y_size; y++) {
-        for (var x = 0; x < payload.x_size; x++) {
-            cell = payload.window[y][x];
-            if (cell.tile != "EMPTY") {
-                pxX = x * cellDims.x;
-                pxY = y * cellDims.y;
-                ctx.beginPath();
-                ctx.rect(pxX, pxY, cellDims.x, cellDims.y);
-                ctx.stroke();
-                ctx.fillStyle = cell.team == UID ? "green" : "red";
-                ctx.fill();
-                ctx.fillStyle = "white";
-                ctx.fillText(cell.tile[0], pxX + (cellSize / 2), pxY + (cellSize / 2));
-            }
-        }
-    }
-}
-
-document.onclick = function fillSquare(event) {
-    /*ctx.lineWidth = cellLineWidth;
-    ctx.strokeStyle = "black";
-    ctx.fillStyle = "green";
-    var x = event.clientX;
-    var y = event.clientY;
-    x = x - (x % (cellDims.x));
-    y = y - (y % (cellDims.y));
-    ctx.beginPath();
-    ctx.rect(x, y, cellDims.x, cellDims.y);
-    ctx.fill();
-    ctx.stroke();*/
-}
-
 function shiftView(shiftX, shiftY, time) {
     //console.log("Shifting (%d, %d)", shiftX, shiftY);
     if (origin.x + shiftX < 0) shiftX = -origin.x;
@@ -283,27 +306,37 @@ document.onkeydown = function keyResponse(event) {
             break;
         case "Enter":
             if (!launched) launchGame();
+            else if (!submitted) {
+                submitCells();
+                submitted = true;
+            }
             break;
         /*case "Space": // for testing/debugging
             if (connected) refreshGrid();
             break;*/
         case "Digit1":
             cellTypeSelected = CELL_TYPES[0];
+            loadSelectingInfo();
             break;
         case "Digit2":
             cellTypeSelected = CELL_TYPES[1];
+            loadSelectingInfo();
             break;     
         case "Digit3":
             cellTypeSelected = CELL_TYPES[2];
+            loadSelectingInfo();
             break;
         case "Digit4":
             cellTypeSelected = CELL_TYPES[3];
+            loadSelectingInfo();
             break;
         case "Digit5":
             cellTypeSelected = CELL_TYPES[4];
+            loadSelectingInfo();
             break;
         case "Digit6":
             cellTypeSelected = CELL_TYPES[5];
+            loadSelectingInfo();
             break;
     }
 }
