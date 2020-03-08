@@ -30,10 +30,27 @@ var origin;
 var shifting = false;
 
 function resizeLanding() {
-    document.getElementById("landing-title").textfill({
-        maxFontPixels: 200
-    });
+    textFit("play-button-text");
 }
+
+function textFit(id) { // Not working
+    var elem = document.getElementById(id);
+    var div = elem.children[0];
+    console.log("Elem: %o", elem);
+    console.log("Div: %o", div);
+
+    console.log("Font size pre: %s", div.style.fontSize);
+    while(div.height > elem.height) {
+        div.style.fontSize = parseInt((div.style.fontsize) - 1) + "px";
+    }
+
+    while( elem.height > div.height) {
+        div.style.fontSize = parseInt((div.style.fontsize) + 1) + "px";
+    }
+    console.log("Font size post: %s", div.style.fontSize);
+}
+
+resizeLanding();
 
 function launchGame() {
     USERNAME = document.getElementById("username-input").value;
@@ -104,6 +121,7 @@ function refreshGrid() {
 }
 
 window.onresize = function() {
+    if (!launched) resizeLanding();
     if (connected) refreshGrid();
 }
 
