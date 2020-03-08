@@ -485,7 +485,6 @@ impl Board {
     }
 
     pub fn get_leaderboard(&self) -> Vec<LeaderboardEntry> {
-        let vec = Vec::with_capacity(5);
 
         let mut teams = self.teams.iter().collect::<Vec<_>>();
         teams.sort_unstable_by_key(|(_, set)| set.len());
@@ -495,9 +494,7 @@ impl Board {
                 name: self.get_player(id).and_then(|player| player.name.clone()),
                 score: set.len(),
             }
-        });
-
-        vec
+        }).collect::<Vec<_>>()
     }
 
     #[inline]
