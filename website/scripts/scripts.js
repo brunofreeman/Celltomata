@@ -11,16 +11,17 @@ WS.onmessage = event => {
     switch (event.type) {
         case "IDENTIFY":
             UID = payload.id;
+            console.log("Client UID: %s", UID);
             break;
         case "FRAME":
             fillCells(payload);
+            break;
     }
 };
 
 var USERNAME;
 var launched = false;
 function launchGame() {
-    //console.log("Launching game...");
     USERNAME = document.getElementById("input").value;
     document.getElementById("landing").remove();
     launched = true;
@@ -37,14 +38,10 @@ var C = 16 * scale;
 var R = 9 * scale;
 var cellSize = screen.height / R;
 var cellLineWidth = cellSize / 10;
-//console.log("Cell size: %d", cellSize);
 var cellCounts;
 var scales;
 var cellDims;
 var shifting = false;
-
-//console.log("Screen: %d x %d, Window: %d x %d", screen.width, screen.height, window.innerWidth, window.innerHeight);
-//console.log("(%d, %d)", canvas.width / C, canvas.height / R)
 
 refreshGrid = function() {
     resizeGrid();
@@ -131,6 +128,7 @@ function fillCells(payload) {
             if (type != "EMPTY") {
                 ctx.fillText(type, pxX + (cellSize / 2), pxY + (cellSize / 2));
             }
+        }
     }
 
     /*var x, y;
@@ -167,12 +165,10 @@ function fillCells(payload) {
 
 function shiftCanvas(shiftX, shiftY, time) {
     shifting = true;
-    //console.log("shifting: ", shifting);
     var fps = 30;
     var frames = fps * time;
     var interval = setInterval(function() {instantShiftCanvas(shiftX / frames, shiftY / frames)}, time * 1000 / frames);
     setTimeout(function() {
-        //console.log("Stopping interval");
         clearInterval(interval);
         shifting = false;
         refreshGrid();
@@ -180,7 +176,6 @@ function shiftCanvas(shiftX, shiftY, time) {
 }
 
 function instantShiftCanvas(shiftX, shiftY) {
-    //console.log("Shifting");
     console.log("shift: (%d, %d)", shiftX, shiftY);
     ctx.globalCompositeOperation = "copy";
     ctx.drawImage(ctx.canvas, shiftX, shiftY);
@@ -188,10 +183,7 @@ function instantShiftCanvas(shiftX, shiftY) {
 }
 
 document.onkeydown = function shiftView(event) {
-    //console.log("%s key pressed", event.code);
-    //console.log("bool before return:", shifting);
     if (shifting) return;
-    //console.log("bool after return: ", shifting);
     var time = 0.4;
     switch (event.code) {
         case "ArrowUp":
