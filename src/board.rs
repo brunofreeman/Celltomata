@@ -228,7 +228,7 @@ impl Board {
     }
 
     pub fn next(&mut self) {
-        // self.queen_gen();
+        self.queen_gen();
         self.feeder_gen();
         self.bolster_gen();
         self.guard_gen();
@@ -468,6 +468,16 @@ impl Board {
         }
 
         None
+    }
+
+    pub fn get_window(&self, x_origin: usize, y_origin: usize, x_size: usize, y_size: usize) -> Vec<Vec<Unit>> {
+        let mut vec = Vec::new();
+        let x_min = x_origin.min(X_SIZE);
+        let x_max = (x_origin + x_size).min(X_SIZE);
+        for y in y_origin.min(Y_SIZE)..(y_origin + y_size).min(Y_SIZE) {
+            vec.push(self.grid[y][x_min..x_max].to_vec())
+        }
+        vec
     }
 }
 

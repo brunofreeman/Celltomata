@@ -34,11 +34,19 @@ pub enum Response {
         x_size: usize,
         y_size: usize,
         window: Vec<Vec<Unit>>
+        /*
+        [
+            [{hp...}, {hp...}, {hp...}],
+            [{hp...}, {hp...}, {hp...}],
+            [{hp...}, {hp...}, {hp...}],
+            [{hp...}, {hp...}, {hp...}],
+        ]
+        */
     }
 }
 
 #[allow(non_camel_case_types)]
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize)]
 #[serde(tag = "type")]
 pub enum Request {
     EXIT_GAME,
@@ -47,6 +55,9 @@ pub enum Request {
         y_origin: usize,
         x_size: usize,
         y_size: usize,
+    },
+    INPUT {
+        units: Vec<(Position, Unit)>
     }
 }
 

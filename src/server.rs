@@ -4,25 +4,64 @@ use uuid::Uuid;
 use std::collections::HashMap;
 use std::sync::Arc;
 use dashmap::DashMap;
+use std::sync::RwLock;
 
 use crate::server;
 use crate::board::*;
 use crate::data::{Response, Request};
 use crate::data::{TileType, Unit, Position};
+use std::time::Duration;
+use std::thread::JoinHandle;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 pub const PROTOCOL: &'static str = "game-of-strife";
 
 // todo how to not use raw pointers
 pub struct Server<'a> {
-    pub board: Board,
+    pub running: Arc<AtomicBool>,
+    pub allow_write: Arc<AtomicBool>,
+    pub board: Arc<RwLock<Board>>,
+    pub thread: JoinHandle<()>,
     pub clients: DashMap<Uuid, *mut ClientHandler<'a>>,
 }
 
 impl<'a> Server<'a> {
     pub fn new() -> Self {
+        let board: Arc<RwLock<Board>> = Arc::new(Board::new().into());
+        let board_handle = board.clone();
+        
+        let running = Arc::new(AtomicBool::new(true));
+        let running_handle = running.clone();
+
+        let allow_write = Arc::new(AtomicBool::new(false));
+        let allow_write_handle = running.clone();
+
+        let handle = std::thread::spawn(move || {
+            let mut n = 10;
+            while running_handle.load(Ordering::SeqCst) {
+                if n == 0 {
+                    allow_write_handle.store(true, Ordering::SeqCst);
+                    println!("Allow writing.");
+                    std::thread::sleep(Duration::from_secs(5));
+                    allow_write_handle.store(false, Ordering::SeqCst);
+                    println!("Lock.");
+                    n = 10;
+                } else {
+                    std::thread::sleep(Duration::from_secs(1));
+                    n -= 1;
+                }
+
+                board_handle.write().map(|mut board| board.next());
+                println!("New generation generated.");
+            }
+        });
+
         Self {
-            board: Board::new(),
-            clients: DashMap::new()
+            running,
+            allow_write,
+            board,
+            clients: DashMap::new(),
+            thread: handle,
         }
     }
 
@@ -33,10 +72,7 @@ impl<'a> Server<'a> {
             out,
         };
 
-        // debug!("Creating a new client (id: {}).", client.id);
-
-        // let arc = Arc::new(client)
-
+        debug!("Creating a new client (id: {}).", client.id);
         self.clients.insert(client.id, &mut client as *mut ClientHandler);
         client
     }
