@@ -51,11 +51,11 @@ impl Server {
     }
 
     pub fn remove_client(&self, cid: Uuid, disconnect: bool) {
-        let client = self.clients.remove(&cid).unwrap();
-        if disconnect {
-            let temp = client.1;
-            debug!("Client (id: {}) kicked by the server.", temp.id);
-            temp.disconnect();
+        if let Some((id, client)) = self.clients.remove(&cid) {
+            if disconnect {
+                debug!("Client (id: {}) kicked by the server.", id);
+                client.disconnect();
+            }
         }
     }
 }
@@ -77,7 +77,10 @@ impl ws::Handler for ClientHandler {
                 Ok(Request::NEW_PLAYER {
                     username
                 }) => {
-                    self.name = Some(username);
+                    self.name = Some(username.clone());
+                    self.server.board.write().map(|mut board| {
+                        board.get_player_mut(self.id).map(|player| { player.name = Some(username); });
+                    });
                     Ok(())
                 }
                 Ok(Request::REQUEST_FRAME {
@@ -105,13 +108,14 @@ impl ws::Handler for ClientHandler {
                 }) => {
                     self.server.board.write().map(|mut board| {
                         if board.get(position).is_empty() {
-                            let energy = board.get_erg_mut(self.id).unwrap();
-                            if tile.get_cost() < *energy {
-                                *energy -= tile.get_cost();
-                                self.send(&Response::ENERGY_UPDATE {
-                                    erg: *energy
-                                });
-                                board.set(position, Unit::new_unit(self.id, position, tile));
+                            if let Some(player) = board.get_player_mut(self.id) {
+                                if tile.get_cost() < player.energy {
+                                    player.energy -= tile.get_cost();
+                                    self.send(&Response::ENERGY_UPDATE {
+                                        erg: player.energy
+                                    });
+                                    board.set(position, Unit::new_unit(self.id, position, tile));
+                                }
                             }
                         }
                     });
@@ -140,6 +144,12 @@ impl ws::Handler for ClientHandler {
 
         self.server.board.write().map(|mut board| {
             if let Some(spawn_pos) = board.find_random_safe_position(5) {
+                board.add_player(PlayerInformation {
+                    id,
+                    name: None,
+                    energy: constants::INIT_ERG,
+                });
+
                 // care package
                 let queen = Unit::new_queen(id, spawn_pos);
                 board.set(spawn_pos, queen);
@@ -149,15 +159,12 @@ impl ws::Handler for ClientHandler {
 
                 // board.set(Position { x: spawn_pos.x - 2, y: spawn_pos.y - 2 }, queen.spawn_unit(TileType::SPAWNER));
 
-                self.out
-                    .send(
+                self.out.send(
                         serde_json::to_string(&Response::IDENTIFY {
                             id: id,
                             origin: spawn_pos,
-                        })
-                        .unwrap(),
-                    )
-                    .unwrap();
+                        }).unwrap(),
+                    ).unwrap();
             } else {
                 self.disconnect()
             }
@@ -176,7 +183,7 @@ impl ws::Handler for ClientHandler {
         self.server.remove_client(self.id, false);
 
         self.server.board.write().map(|mut board| {
-            board.kill_team(self.id);
+            board.remove_player(self.id);
         });
 
         match code {

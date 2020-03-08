@@ -1,4 +1,4 @@
-use crate::data::{Position, TileType, Unit};
+use crate::data::{LeaderboardEntry, Position, TileType, Unit};
 use crate::utils;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -17,7 +17,7 @@ pub struct Board {
     // Map between team UUID and positions of their cells.
     teams: HashMap<Uuid, HashSet<Position>>,
 
-    energies: HashMap<Uuid, u32>,
+    players: HashMap<Uuid, PlayerInformation>,
 
     // Map between the tiles and their positions.
     types: HashMap<TileType, HashSet<Position>>,
@@ -108,13 +108,20 @@ impl fmt::Display for TileType {
     }
 }
 
+#[derive(Clone)]
+pub struct PlayerInformation {
+    pub id: Uuid,
+    pub name: Option<String>,
+    pub energy: u32,
+}
+
 impl Board {
     pub fn new() -> Self {
         Self {
             grid: HashMap::new(),
             teams: HashMap::new(),
             types: HashMap::new(),
-            energies: HashMap::new(),
+            players: HashMap::new(),
         }
     }
 
@@ -224,7 +231,10 @@ impl Board {
         self.types.get(&TileType::QUEEN).map(|vec| {
             vec.iter().for_each(|&queen_pos| {
                 if let Some(base_pos) = self.nearest_unoccupied_position(queen_pos, 1) {
-                    new_board.set(base_pos, self.get(queen_pos).spawn_unit(base_pos, TileType::BASE))
+                    new_board.set(
+                        base_pos,
+                        self.get(queen_pos).spawn_unit(base_pos, TileType::BASE),
+                    )
                 }
             });
         });
@@ -232,18 +242,26 @@ impl Board {
         *self = new_board;
     }
 
-    pub fn get_erg_mut(&mut self, id: Uuid) -> Option<&mut u32> {
-        self.energies.get_mut(&id)
+    pub fn get_player(&self, id: Uuid) -> Option<&PlayerInformation> {
+        self.players.get(&id)
     }
 
-    pub fn kill_team(&mut self, id: Uuid) {
+    pub fn get_player_mut(&mut self, id: Uuid) -> Option<&mut PlayerInformation> {
+        self.players.get_mut(&id)
+    }
+
+    pub fn add_player(&mut self, player: PlayerInformation) {
+        self.players.insert(player.id, player);
+    }
+
+    pub fn remove_player(&mut self, id: Uuid) {
         let mut new_board = self.clone();
         self.teams.get(&id).map(|set| {
             set.iter().for_each(|&pos| {
                 new_board.delete(pos);
             })
         });
-        self.energies.remove(&id);
+        self.players.remove(&id);
         new_board.teams.remove(&id);
         *self = new_board;
     }
@@ -264,7 +282,7 @@ impl Board {
                 if unit.hp == 0 {
                     if unit.tile == TileType::QUEEN {
                         let team = unit.team;
-                        new_board.kill_team(team);
+                        new_board.remove_player(team);
                         continue 'z;
                     } else {
                         new_board.delete(pos);
@@ -314,10 +332,7 @@ impl Board {
                         99 => TileType::GUARD,
                         _ => unreachable!(),
                     };
-                    new_board.set(
-                        unit_pos,
-                        self.get(spawner_pos).spawn_unit(unit_pos, tile),
-                    )
+                    new_board.set(unit_pos, self.get(spawner_pos).spawn_unit(unit_pos, tile))
                 }
             });
         });
@@ -350,7 +365,7 @@ impl Board {
                         if target_unit.hp == 0 {
                             if target_unit.tile == TileType::QUEEN {
                                 let team = target_unit.team;
-                                new_board.kill_team(team);
+                                new_board.remove_player(team);
                             }
                             new_board.move_unit(guard_pos, enemy_pos);
                         }
@@ -398,7 +413,7 @@ impl Board {
                         if target_unit.hp == 0 {
                             if target_unit.tile == TileType::QUEEN {
                                 let team = target_unit.team;
-                                new_board.kill_team(team);
+                                new_board.remove_player(team);
                             }
                             new_board.move_unit(attacker_pos, enemy_pos);
                         }
@@ -467,6 +482,19 @@ impl Board {
             self.bfs(position, max_depth, false, |pos| self.get(pos).tile == tile)
                 .map_or(false, |fpos| self.get(fpos).is_same_team_as(unit))
         }
+    }
+
+    fn get_leaderboard(&self) -> Vec<LeaderboardEntry> {
+        let vec = Vec::with_capacity(5);
+
+        self.teams.iter().map(|(&id, set)| {
+            LeaderboardEntry {
+                name: self.get_player(id).and_then(|player| player.name.clone()),
+                score: set.len(),
+            }
+        });
+
+        vec
     }
 
     #[inline]

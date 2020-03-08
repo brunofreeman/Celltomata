@@ -39,7 +39,16 @@ pub enum Response {
     },
     ENERGY_UPDATE {
         erg: u32,
+    },
+    LEADERBOARD_UPDATE {
+        leaderboard: Vec<LeaderboardEntry>
     }
+}
+
+#[derive(Serialize)]
+pub struct LeaderboardEntry {
+    pub name: Option<String>,
+    pub score: usize,
 }
 
 #[allow(non_camel_case_types)]

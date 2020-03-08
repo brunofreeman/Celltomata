@@ -144,7 +144,7 @@ document.onclick = function fillSquare(event) {
         pos: {x: x + origin.x, y: y + origin.y}
     }
     if (energy - COSTS[CELL_TYPES.indexOf(cellTypeSelected)] >= 0) {
-        fillCell(cell, x, y);
+        // fillCell(cell, x, y);
         submitCell(cell);
     }
 }
