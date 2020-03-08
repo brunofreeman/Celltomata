@@ -1,8 +1,27 @@
-var username;
+var WS = new WebSocket("ws://10.8.36.184:2794");
+var UID;
+WS.onopen = event => {
+    console.log("Connected to %s", ws.url)
+};
+WS.onclose = event => {
+    console.log("Disconnected from %s", ws.url)
+};
+WS.onmessage = event => {
+    var payload = JSON.parse(event.data);
+    switch (event.type) {
+        case "IDENTIFY":
+            UID = payload.id;
+            break;
+        case "FRAME":
+            fillCells(payload);
+    }
+};
+
+var USERNAME;
 var launched = false;
 function launchGame() {
     //console.log("Launching game...");
-    username = document.getElementById("input").value;
+    USERNAME = document.getElementById("input").value;
     document.getElementById("landing").remove();
     launched = true;
     refreshGrid();
@@ -30,7 +49,7 @@ var shifting = false;
 refreshGrid = function() {
     resizeGrid();
     drawGrid();
-    fillCells();
+    requestCells();
 }
 
 window.onresize = function() {
@@ -62,15 +81,7 @@ function drawGrid() {
     }
 }
 
-function fillCells() {
-    // cells = [{x (rel. to screen): , y (rel. to screen): , type: , teamColor: }, {}, ...]
-    // cells = getCellsFromRust(screen min X coord, screen min Y coord, cellCounts.x, cellCounts.y);
-    /*var cells = [
-        {x: 4, y: 4, type: "queen", color: "green"},
-        {x: 5, y: 4, type: "base", color: "green"},
-        {x: 10, y: 5, type: "queen", color: "red"}
-    ]*/
-    var numCells = 15;
+function getRandomCells(numCells) {
     var types = ["Q", "b", "F", "S"];
     var colors = ["red", "green", "blue"];
     var cells = [];
@@ -82,14 +93,47 @@ function fillCells() {
         color = colors[Math.floor(Math.random() * colors.length)];
         cells.push({x: x, y: y, type: type, color: color})
     }
+    return cells;
+}
 
+function requestCells() {
+    WS.send(JSON.stringify({
+        type : "REQUEST_FRAME",
+        x_origin : 0,
+        y_origin : 0,
+        x_size : cellCounts.x,
+        y_size : cellCounts.y
+    }));
+}
+
+function fillCells(payload) {
     ctx.lineWidth = cellLineWidth;
     ctx.strokeStyle = "black";
     ctx.font = `${cellSize / 1.5}px Arial`;
     ctx.textAlign = "center"; 
-    ctx.textBaseline = "middle";//**
+    ctx.textBaseline = "middle";
 
-    var x, y;
+    for (var y = 0; y < payload.y_size; y++) {
+        for (var x = 0; x < payload.x_size; x++) {
+            cell = payload.window[y][x];
+            pxX = x * cellDims.x;
+            pxY = y * cellDims.y;
+
+            ctx.beginPath();
+            ctx.rect(pxX, pxY, cellDims.x, cellDims.y);
+            
+            cellTeam = cell.team;
+            ctx.fillStyle = cellTeam == UID ? "green" : "red";
+
+            ctx.stroke();
+            ctx.fillStyle = "white";
+            var type = cell.tile;
+            if (type != "EMPTY") {
+                ctx.fillText(type, pxX + (cellSize / 2), pxY + (cellSize / 2));
+            }
+    }
+
+    /*var x, y;
     for (var i = 0; i < cells.length; i++) {
         //console.log("Drawing %o", cells[i]);
         x = cells[i].x * cellDims.x;
@@ -102,10 +146,10 @@ function fillCells() {
         ctx.stroke();
         ctx.fillStyle = "white";
         ctx.fillText(cells[i].type, x + (cellSize / 2), y + (cellSize / 2));
-    }
+    }*/
 }
 
-document.onclick = function fillSquare(event) {
+/*document.onclick = function fillSquare(event) {
     //console.log("Begin fillSquare()");
     ctx.lineWidth = cellLineWidth;
     ctx.strokeStyle = "black";
@@ -119,7 +163,7 @@ document.onclick = function fillSquare(event) {
     ctx.rect(x, y, cellDims.x, cellDims.y);
     ctx.fill();
     ctx.stroke();
-}
+}*/
 
 function shiftCanvas(shiftX, shiftY, time) {
     shifting = true;
