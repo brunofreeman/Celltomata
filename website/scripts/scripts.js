@@ -124,12 +124,11 @@ function fillCells(payload) {
 
             ctx.beginPath();
             ctx.rect(pxX, pxY, cellDims.x, cellDims.y);
-            
             cellTeam = cell.team;
             ctx.fillStyle = cellTeam == UID ? "green" : "red";
-
             ctx.stroke();
             var type = cell.tile;
+
             if (type != "EMPTY") {
                 ctx.fill();
                 ctx.fillStyle = "white";
@@ -184,7 +183,6 @@ function shiftCanvas(shiftX, shiftY, time) {
 }
 
 function instantShiftCanvas(shiftX, shiftY) {
-    console.log("shift: (%d, %d)", shiftX, shiftY);
     ctx.globalCompositeOperation = "copy";
     ctx.drawImage(ctx.canvas, shiftX, shiftY);
     ctx.globalCompositeOperation = "source-over"
@@ -208,6 +206,9 @@ document.onkeydown = function shiftView(event) {
             break;
         case "Enter":
             if (!launched) launchGame();
+            break;
+        case "Space": // for testing
+            refreshGrid();
             break;
     }
 }
