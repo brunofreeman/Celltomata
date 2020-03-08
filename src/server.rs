@@ -10,6 +10,7 @@ use crate::board::*;
 use crate::data::{Position, TileType, Unit};
 use crate::data::{Request, Response};
 use crate::server;
+use crate::constants;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::JoinHandle;
 use std::time::Duration;
@@ -98,20 +99,25 @@ impl ws::Handler for ClientHandler {
                         });
                     Ok(())
                 }
-                Ok(Request::EXIT_GAME) => {
-                    // self.instance_id.map(|o| {
-                    //     server
-                    //         .get_instance(o)
-                    //         .map(|i| i.remove_client(self.id, false))
-                    // });
-                    // self.clear_instance();
+                Ok(Request::PUT {
+                    position,
+                    tile
+                }) => {
+                    self.server.board.write().map(|mut board| {
+                        if board.get(position).is_empty() {
+                            let energy = board.get_erg_mut(self.id).unwrap();
+                            if tile.get_cost() < *energy {
+                                *energy -= tile.get_cost();
+                                board.set(position, Unit::new_unit(self.id, position, tile));
+                            }
+                        }
+                    });
                     Ok(())
                 }
-                // Ok(data) => {
-                //     // self.instance_id
-                //     //     .map(|o| server.get_instance(o).map(|i| i.process(self.id, data)));
-                //     // Ok(())
-                // }
+                Ok(Request::EXIT_GAME) => {
+                    self.disconnect();
+                    Ok(())
+                }
                 _ => Err(ws::Error::new(ws::ErrorKind::Protocol, "Unrecognized data")),
                 Err(_) => Err(ws::Error::new(
                     ws::ErrorKind::Protocol,
@@ -132,10 +138,13 @@ impl ws::Handler for ClientHandler {
         self.server.board.write().map(|mut board| {
             if let Some(spawn_pos) = board.find_random_safe_position(5) {
                 // care package
-                let queen = Unit::new_queen(id);
+                let queen = Unit::new_queen(id, spawn_pos);
                 board.set(spawn_pos, queen);
-                board.set(Position { x: spawn_pos.x, y: spawn_pos.y + 1 }, queen.spawn_unit(TileType::FEEDER));
-                board.set(Position { x: spawn_pos.x - 2, y: spawn_pos.y - 2 }, queen.spawn_unit(TileType::SPAWNER));
+
+                let feeder_pos = Position { x: spawn_pos.x, y: spawn_pos.y + 1 };
+                board.set(feeder_pos, queen.spawn_unit(feeder_pos, TileType::FEEDER));
+
+                // board.set(Position { x: spawn_pos.x - 2, y: spawn_pos.y - 2 }, queen.spawn_unit(TileType::SPAWNER));
 
                 self.out
                     .send(
@@ -161,13 +170,6 @@ impl ws::Handler for ClientHandler {
     }
 
     fn on_close(&mut self, code: ws::CloseCode, reason: &str) {
-        // let server = unsafe { &mut *self.server };
-        // self.instance_id.map(|o| {
-        //     server
-        //         .get_instance(o)
-        //         .map(|i| i.remove_client(self.id, false))
-        // });
-
         self.server.remove_client(self.id, false);
 
         self.server.board.write().map(|mut board| {

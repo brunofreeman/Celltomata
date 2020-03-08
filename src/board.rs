@@ -8,26 +8,7 @@ use uuid::Uuid;
 use rand::seq::SliceRandom;
 use rand::Rng;
 
-static ALL_OFFSETS: [(isize, isize); 8] = [
-    (-1, 0),
-    (0, -1),
-    (1, 0),
-    (0, 1),
-    (-1, -1),
-    (1, -1),
-    (1, 1),
-    (-1, 1),
-];
-
-const X_SIZE: usize = 50;
-const Y_SIZE: usize = 50;
-
-const INIT_ENERGY: u32 = 50;
-
-const MAX_HP: u32 = 8;
-const MAX_AM: u32 = 8;
-const ATK_DMG: u32 = 4;
-const GRD_DMG: u32 = 3;
+use crate::constants;
 
 #[derive(Clone)]
 pub struct Board {
@@ -36,6 +17,8 @@ pub struct Board {
     // Map between team UUID and positions of their cells.
     teams: HashMap<Uuid, HashSet<Position>>,
 
+    energies: HashMap<Uuid, u32>,
+
     // Map between the tiles and their positions.
     types: HashMap<TileType, HashSet<Position>>,
 }
@@ -43,8 +26,8 @@ pub struct Board {
 impl fmt::Display for Board {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let mut s = String::new();
-        for y in 0..Y_SIZE {
-            for x in 0..X_SIZE {
+        for y in 0..constants::Y_SIZE {
+            for x in 0..constants::X_SIZE {
                 write!(&mut s, "{}", self.get(Position::new(x, y)));
             }
             s.push('\n');
@@ -65,32 +48,35 @@ impl Unit {
         team: Uuid::nil(),
         hp: 0,
         am: 0,
-        target_pos: Some(Position::new(0, 0)),
+        target_pos: Position::new(0, 0),
     };
 
-    pub fn new_queen(team_id: Uuid) -> Unit {
+    pub fn new_queen(team_id: Uuid, position: Position) -> Unit {
         Unit {
             tile: TileType::QUEEN,
             team: team_id,
-            hp: MAX_HP,
-            ..Default::default()
+            hp: constants::MAX_HP,
+            am: 0,
+            target_pos: position,
         }
     }
 
-    pub fn spawn_unit_with_pos(&self, position: Position, tile: TileType) -> Unit {
-        if tile == TileType::EMPTY { return Unit::EMPTY }
-        else {
-            Unit {
-                tile,
-                team: self.team,
-                hp: tile.get_base_hp(),
-                ..Default::default()
-            }
+    pub fn new_unit(id: Uuid, position: Position, tile: TileType) -> Unit {
+        Unit {
+            tile,
+            team: id,
+            hp: tile.get_base_hp(),
+            am: 0,
+            target_pos: position,
         }
     }
 
-    pub fn spawn_unit(&self, tile: TileType) -> Unit {
-        self.spawn_unit_with_pos(Position::default(), tile)
+    pub fn spawn_unit(&self, position: Position, tile: TileType) -> Unit {
+        if tile == TileType::EMPTY {
+            Unit::EMPTY
+        } else {
+            Self::new_unit(self.team, position, tile)
+        }
     }
 
     pub fn is_same_team_as(&self, other: Unit) -> bool {
@@ -103,12 +89,6 @@ impl Unit {
 
     pub fn is_empty(&self) -> bool {
         self.tile == TileType::EMPTY
-    }
-}
-
-impl Default for Unit {
-    fn default() -> Self {
-        Self::EMPTY
     }
 }
 
@@ -128,40 +108,13 @@ impl fmt::Display for TileType {
     }
 }
 
-impl TileType {
-    pub fn get_base_hp(self) -> u32 {
-        match self {
-            TileType::EMPTY => 0,
-            TileType::BASE => 3,
-            TileType::SPAWNER => 3,
-            TileType::FEEDER => 4,
-            TileType::BOLSTER => 1,
-            TileType::GUARD => 10,
-            TileType::ATTACK => 6,
-            TileType::QUEEN => 10,
-        }
-    }
-
-    pub fn get_cost(self) -> u32 {
-        match self {
-            TileType::EMPTY => 0,
-            TileType::BASE => 3,
-            TileType::SPAWNER => 3,
-            TileType::FEEDER => 4,
-            TileType::BOLSTER => 1,
-            TileType::GUARD => 10,
-            TileType::ATTACK => 6,
-            TileType::QUEEN => 1000000000,
-        }
-    }
-}
-
 impl Board {
     pub fn new() -> Self {
         Self {
             grid: HashMap::new(),
             teams: HashMap::new(),
             types: HashMap::new(),
+            energies: HashMap::new(),
         }
     }
 
@@ -172,8 +125,8 @@ impl Board {
     ) -> Option<Position> {
         if dx < 0 && x == 0
             || dy < 0 && y == 0
-            || dx > 0 && x == X_SIZE - 1
-            || dy > 0 && y == Y_SIZE - 1
+            || dx > 0 && x == constants::X_SIZE - 1
+            || dy > 0 && y == constants::Y_SIZE - 1
         {
             None
         } else {
@@ -194,7 +147,7 @@ impl Board {
     }
 
     fn is_adj_position(&self, origin: Position, target: Position) -> bool {
-        ALL_OFFSETS
+        constants::ALL_OFFSETS
             .iter()
             .filter_map(|&offset| self.adj_position(origin, offset))
             .any(|pos| pos == target)
@@ -270,13 +223,17 @@ impl Board {
         // if let Some(vec) = self.types.get(&TileType::QUEEN) {
         self.types.get(&TileType::QUEEN).map(|vec| {
             vec.iter().for_each(|&queen_pos| {
-                if let Some(base_pos) = self.nearest_unoccupied_position(queen_pos, 5) {
-                    new_board.set(base_pos, self.get(queen_pos).spawn_unit(TileType::BASE))
+                if let Some(base_pos) = self.nearest_unoccupied_position(queen_pos, 1) {
+                    new_board.set(base_pos, self.get(queen_pos).spawn_unit(base_pos, TileType::BASE))
                 }
             });
         });
 
         *self = new_board;
+    }
+
+    pub fn get_erg_mut(&mut self, id: Uuid) -> Option<&mut u32> {
+        self.energies.get_mut(&id)
     }
 
     pub fn kill_team(&mut self, id: Uuid) {
@@ -286,6 +243,7 @@ impl Board {
                 new_board.delete(pos);
             })
         });
+        self.energies.remove(&id);
         new_board.teams.remove(&id);
         *self = new_board;
     }
@@ -326,12 +284,12 @@ impl Board {
         let mut new_board = self.clone();
         self.teams.iter().for_each(|(team_id, list)| {
             list.iter()
-                .filter(|&&pos| self.within_friendly_range(pos, TileType::BOLSTER, 5))
+                .filter(|&&pos| self.within_friendly_range(pos, TileType::BOLSTER, 3))
                 .for_each(|&pos| {
                     let unit = new_board.get_mut(pos);
                     unit.am = unit.am.saturating_add(1);
-                    if unit.am > MAX_AM {
-                        unit.am = MAX_AM;
+                    if unit.am > constants::MAX_AM {
+                        unit.am = constants::MAX_AM;
                     }
                 });
         });
@@ -345,18 +303,21 @@ impl Board {
 
         self.types.get(&TileType::SPAWNER).map(|vec| {
             vec.iter().for_each(|&spawner_pos| {
-                if let Some(unit_pos) = self.nearest_unoccupied_position(spawner_pos, 2) {
+                if let Some(unit_pos) = self.nearest_unoccupied_position(spawner_pos, 5) {
                     // new_board.set(base_pos, self.get(spawner_pos).spawn_base())
                     let tile = match rng.gen_range(0, 100) {
-                        0..=89 => TileType::BASE,
-                        90 | 91 => TileType::ATTACK,
-                        92 | 93 => TileType::SPAWNER,
-                        94 | 95 => TileType::FEEDER,
-                        96 | 97 => TileType::BOLSTER,
-                        98 | 99 => TileType::GUARD,
+                        0..=94 => TileType::BASE,
+                        95 => TileType::ATTACK,
+                        96 => TileType::SPAWNER,
+                        97 => TileType::FEEDER,
+                        98 => TileType::BOLSTER,
+                        99 => TileType::GUARD,
                         _ => unreachable!(),
                     };
-                    new_board.set(unit_pos, self.get(spawner_pos).spawn_unit_with_pos(unit_pos, tile))
+                    new_board.set(
+                        unit_pos,
+                        self.get(spawner_pos).spawn_unit(unit_pos, tile),
+                    )
                 }
             });
         });
@@ -374,15 +335,16 @@ impl Board {
                         let target_unit = new_board.get_mut(enemy_pos);
 
                         if target_unit.am != 0 {
-                            if target_unit.am < ATK_DMG {
-                                target_unit.hp =
-                                    target_unit.hp.saturating_sub(GRD_DMG - target_unit.am);
+                            if target_unit.am < constants::ATK_DMG {
+                                target_unit.hp = target_unit
+                                    .hp
+                                    .saturating_sub(constants::GRD_DMG - target_unit.am);
                                 target_unit.am = 0;
                             } else {
-                                target_unit.am = target_unit.am.saturating_sub(GRD_DMG);
+                                target_unit.am = target_unit.am.saturating_sub(constants::GRD_DMG);
                             }
                         } else {
-                            target_unit.hp = target_unit.hp.saturating_sub(GRD_DMG);
+                            target_unit.hp = target_unit.hp.saturating_sub(constants::GRD_DMG);
                         }
 
                         if target_unit.hp == 0 {
@@ -397,7 +359,7 @@ impl Board {
                         new_board.move_unit(guard_pos, target);
                     }
                 } else {
-                    let target_pos = self.get(guard_pos).target_pos.unwrap();
+                    let target_pos = self.get(guard_pos).target_pos;
                     if guard_pos != target_pos {
                         let target = self.adj_position_towards(guard_pos, target_pos);
                         if self.get(target).is_empty() {
@@ -421,15 +383,16 @@ impl Board {
                         let target_unit = new_board.get_mut(enemy_pos);
 
                         if target_unit.am != 0 {
-                            if target_unit.am < ATK_DMG {
-                                target_unit.hp =
-                                    target_unit.hp.saturating_sub(ATK_DMG - target_unit.am);
+                            if target_unit.am < constants::ATK_DMG {
+                                target_unit.hp = target_unit
+                                    .hp
+                                    .saturating_sub(constants::ATK_DMG - target_unit.am);
                                 target_unit.am = 0;
                             } else {
-                                target_unit.am = target_unit.am.saturating_sub(ATK_DMG);
+                                target_unit.am = target_unit.am.saturating_sub(constants::ATK_DMG);
                             }
                         } else {
-                            target_unit.hp = target_unit.hp.saturating_sub(ATK_DMG);
+                            target_unit.hp = target_unit.hp.saturating_sub(constants::ATK_DMG);
                         }
 
                         if target_unit.hp == 0 {
@@ -456,10 +419,14 @@ impl Board {
         let mut rng = rand::thread_rng();
 
         for _ in 0..50 {
-            let x = rng.gen_range(0, X_SIZE);
-            let y = rng.gen_range(0, Y_SIZE);
+            let x = rng.gen_range(0, constants::X_SIZE);
+            let y = rng.gen_range(0, constants::Y_SIZE);
 
-            if x <= distance || x >= X_SIZE - distance || y <= distance || y >= Y_SIZE - distance {
+            if x <= distance
+                || x >= constants::X_SIZE - distance
+                || y <= distance
+                || y >= constants::Y_SIZE - distance
+            {
                 continue;
             }
 
@@ -525,7 +492,7 @@ impl Board {
                 continue;
             }
 
-            let mut dirs = ALL_OFFSETS;
+            let mut dirs = constants::ALL_OFFSETS;
             if randomized {
                 let mut rng = rand::thread_rng();
                 dirs[0..4].shuffle(&mut rng);
@@ -552,10 +519,10 @@ impl Board {
         x_size: usize,
         y_size: usize,
     ) -> Vec<Vec<Unit>> {
-        let x_min = x_origin.min(X_SIZE);
-        let x_max = (x_origin + x_size).min(X_SIZE);
-        let y_min = y_origin.min(Y_SIZE);
-        let y_max = (y_origin + y_size).min(Y_SIZE);
+        let x_min = x_origin.min(constants::X_SIZE);
+        let x_max = (x_origin + x_size).min(constants::X_SIZE);
+        let y_min = y_origin.min(constants::Y_SIZE);
+        let y_max = (y_origin + y_size).min(constants::Y_SIZE);
         let mut vec = Vec::with_capacity(y_max - y_min);
         for y in y_min..y_max {
             let mut inner_vec = Vec::with_capacity(x_max - x_min);

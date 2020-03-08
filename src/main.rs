@@ -13,6 +13,7 @@ mod board;
 mod data;
 mod server;
 mod utils;
+mod constants;
 
 use board::*;
 use data::{Position, TileType, Unit};

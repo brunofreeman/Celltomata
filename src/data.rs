@@ -1,12 +1,12 @@
 use uuid::Uuid;
 
-#[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, PartialEq, Eq, Serialize)]
 pub struct Unit {
     pub tile: TileType,
     pub team: Uuid,
     pub hp: u32,
     pub am: u32,
-    pub target_pos: Option<Position>,
+    pub target_pos: Position,
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
@@ -59,9 +59,9 @@ pub enum Request {
         x_size: usize,
         y_size: usize,
     },
-    INPUT {
+    PUT {
         position: Position,
-        unit: Unit,
+        tile: TileType,
     }
 }
 
