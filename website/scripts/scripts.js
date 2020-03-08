@@ -10,11 +10,13 @@ var connected = false;
 var canvas = document.getElementById("canvas");
 var ctx = canvas.getContext("2d");
 
+var GRID_SIZE = 500;
+
 var SCALE = 2;
 var C = 16 * SCALE;
 var R = 9 * SCALE;
 var cellSize = screen.height / R;
-var cellLineWidth = cellSize / 10;
+var cellLineWidth = cellSize / 15;
 var cellCounts;
 var scales;
 var cellDims;
@@ -110,6 +112,7 @@ function launchGame() {
                 fillCells(payload);
                 break;
             case "GENERATION_PING":
+                if (shifting) return;
                 refreshGrid();
                 break;
             case "LEADERBORD_UPDATE":
@@ -259,9 +262,9 @@ function requestCells() {
 function shiftView(shiftX, shiftY, time) {
     //console.log("Shifting (%d, %d)", shiftX, shiftY);
     if (origin.x + shiftX < 0) shiftX = -origin.x;
-    if (origin.x + shiftX > 99) shiftX = 99 - origin.x;
+    if (origin.x + shiftX >= GRID_SIZE) shiftX = GRID_SIZE - 1 - origin.x;
     if (origin.y + shiftY < 0) shiftY = -origin.y;
-    if (origin.y + shiftY > 99) shiftY = 99 - origin.y;
+    if (origin.y + shiftY >= GRID_SIZE) shiftY = GRID_SIZE - 1 - origin.y;
     //console.log("Shifting (%d, %d), origin (%d, %d)", shiftX, shiftY, origin.x, origin.y);
     var fps = 30;
     var frames = fps * time;
