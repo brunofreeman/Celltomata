@@ -29,11 +29,48 @@ var cellDims;
 var origin;
 var shifting = false;
 
+var CELL_TYPES = [
+    "BASE",
+    "SPAWNER",
+    "FEEDER",
+    "BOLSTERER",
+    "GUARD",
+    "ATTACKER"
+]
+var cellTypeSelected = CELL_TYPES[0];
+var ENERGY = 50;
+
+var COSTS = {
+    BASE: 1,
+    SPAWNER: 5,
+    FEEDER: 3,
+    BOLSTERER: 3,
+    GUARD: 2,
+    ATTACKER: 3
+};
+
 function resizeLanding() {
-    document.getElementById("landing-title").textfill({
-        maxFontPixels: 200
-    });
+    textFit("play-button-text");
 }
+
+function textFit(id) { // Not working
+    /*var elem = document.getElementById(id);
+    var div = elem.children[0];
+    console.log("Elem: %o", elem);
+    console.log("Div: %o", div);
+
+    console.log("Font size pre: %s", div.style.fontSize);
+    while(div.height > elem.height) {
+        div.style.fontSize = parseInt((div.style.fontsize) - 1) + "px";
+    }
+
+    while( elem.height > div.height) {
+        div.style.fontSize = parseInt((div.style.fontsize) + 1) + "px";
+    }
+    console.log("Font size post: %s", div.style.fontSize);*/
+}
+
+resizeLanding();
 
 function launchGame() {
     USERNAME = document.getElementById("username-input").value;
@@ -48,6 +85,7 @@ function launchGame() {
 
     document.getElementById("landing").remove();
     document.getElementById("username").innerHTML = USERNAME;
+    loadSelectingInfo();
     launched = true;
 
     WS = new WebSocket("ws://" + IP, PROTOCOL);
@@ -68,8 +106,10 @@ function launchGame() {
         switch (payload.type) {
             case "IDENTIFY":
                 UID = payload.id;
+                //resizeGrid();
                 origin = payload.origin;
-                refreshGrid();
+                resizeGrid();
+                shiftView(Math.ceil(-cellCounts.x / 2), Math.ceil(-cellCounts.y / 2), 0);
                 //console.log("Client UID: %s", UID);
                 break;
             case "FRAME":
@@ -85,6 +125,15 @@ function launchGame() {
         }
     };
     refreshLeaderboard(null); // remove when An implements the update
+}
+
+function loadSelectingInfo() {
+    siDOM = document.getElementById("selecting-info");
+    for (var i = 0; i < CELL_TYPES.length; i++) {
+        var siEntry = document.createElement("LI");
+        siEntry.appendChild(document.createTextNode(CELL_TYPES[i]))
+        siDOM.appendChild(siEntry);
+    }
 }
 
 function refreshLeaderboard(payload) {
@@ -104,6 +153,7 @@ function refreshGrid() {
 }
 
 window.onresize = function() {
+    if (!launched) resizeLanding();
     if (connected) refreshGrid();
 }
 
@@ -187,25 +237,35 @@ function shiftView(shiftX, shiftY, time) {
     if (origin.x + shiftX > 99) shiftX = 99 - origin.x;
     if (origin.y + shiftY < 0) shiftY = -origin.y;
     if (origin.y + shiftY > 99) shiftY = 99 - origin.y;
-    console.log("Shifting (%d, %d), origin (%d, %d)", shiftX, shiftY, origin.x, origin.y);
-    shifting = true;
+    //console.log("Shifting (%d, %d), origin (%d, %d)", shiftX, shiftY, origin.x, origin.y);
     var fps = 30;
     var frames = fps * time;
     ctx.globalCompositeOperation = "copy";
-    var interval = setInterval(function() {
-        ctx.drawImage(ctx.canvas, cellDims.x * -shiftX / frames, cellDims.y * -shiftY / frames)
-    }, time * 1000 / frames);
-    setTimeout(function() {
-        clearInterval(interval);
+    if (time != 0) {
+        shifting = true;
+        var interval = setInterval(function() {
+            ctx.drawImage(ctx.canvas, cellDims.x * -shiftX / frames, cellDims.y * -shiftY / frames)
+        }, time * 1000 / frames);
+        setTimeout(function() {
+            clearInterval(interval);
+            ctx.globalCompositeOperation = "source-over";
+            shifting = false;
+            origin.x += shiftX;
+            origin.y += shiftY;
+            refreshGrid();
+        }, time * 1000);
+    } else {
+        ctx.drawImage(ctx.canvas, cellDims.x * -shiftX, cellDims.y * -shiftY);
         ctx.globalCompositeOperation = "source-over";
-        shifting = false;
         origin.x += shiftX;
         origin.y += shiftY;
         refreshGrid();
-    }, time * 1000);
+    }
+    
 }
 
 document.onkeydown = function keyResponse(event) {
+    //console.log(event.code);
     if (shifting) return;
     var TIME = 0.4;
     switch (event.code) {
@@ -224,8 +284,26 @@ document.onkeydown = function keyResponse(event) {
         case "Enter":
             if (!launched) launchGame();
             break;
-        case "Space": // for testing/debugging
+        /*case "Space": // for testing/debugging
             if (connected) refreshGrid();
+            break;*/
+        case "Digit1":
+            cellTypeSelected = CELL_TYPES[0];
+            break;
+        case "Digit2":
+            cellTypeSelected = CELL_TYPES[1];
+            break;     
+        case "Digit3":
+            cellTypeSelected = CELL_TYPES[2];
+            break;
+        case "Digit4":
+            cellTypeSelected = CELL_TYPES[3];
+            break;
+        case "Digit5":
+            cellTypeSelected = CELL_TYPES[4];
+            break;
+        case "Digit6":
+            cellTypeSelected = CELL_TYPES[5];
             break;
     }
 }

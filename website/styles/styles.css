@@ -55,3 +55,8 @@ canvas {
 #leaderboard {
     position: absolute;
 }
+
+#selecting-info {
+    position: absolute;
+    top: 75%;
+}
