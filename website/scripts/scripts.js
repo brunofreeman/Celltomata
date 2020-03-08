@@ -29,6 +29,12 @@ var cellDims;
 var origin;
 var shifting = false;
 
+function resizeLanding() {
+    document.getElementById("landing-title").textfill({
+        maxFontPixels: 200
+    });
+}
+
 function launchGame() {
     USERNAME = document.getElementById("username-input").value;
     var matches = USERNAME.match(USERNAME_REGEX);
@@ -62,7 +68,7 @@ function launchGame() {
         switch (payload.type) {
             case "IDENTIFY":
                 UID = payload.id;
-                origin = {x: 0, y: 0}; //payload.origin;
+                origin = payload.origin;
                 refreshGrid();
                 //console.log("Client UID: %s", UID);
                 break;
@@ -82,7 +88,6 @@ function launchGame() {
 }
 
 function refreshLeaderboard(payload) {
-    console.log("Refreshing leaderboard");
     lbDOM = document.getElementById("leaderboard");
     lbDOM.innerHTML = "";
     for (var i = 0; i < leaderboard.length; i++) {

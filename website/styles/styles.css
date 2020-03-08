@@ -8,7 +8,7 @@ canvas {
     top: 0px;
 }
 
-#title {
+#landing-title {
     position: absolute;
     width: 30%;
     height: 15%;
@@ -44,7 +44,7 @@ canvas {
     top: 55%;
 }
 
-#invalid {
+#invalid-msg {
     position: absolute;
     width: 10%;
     height: 5%;
