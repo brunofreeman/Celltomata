@@ -38,15 +38,15 @@ var CELL_TYPES = [
     "ATTACK"
 ]
 var cellTypeSelected = CELL_TYPES[0];
-var energy = 50;
+var energy = 2020;
 
 var COSTS = [
-    1, //b
-    5, //S
-    3, //F
-    3, //B
-    2, //G
-    3 //A
+    100, //b
+    750, //S
+    325, //F
+    500, //B
+    650, //G
+    725 //A
 ];
 
 var submitted = false;

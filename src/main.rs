@@ -98,7 +98,7 @@ fn main() -> ws::Result<()> {
     // return Ok(());
 
     env_logger::Builder::new()
-        .filter_level(log::LevelFilter::Debug)
+        .filter_level(log::LevelFilter::Info)
         .filter_module("ws::handler", log::LevelFilter::Info)
         .init();
 
@@ -114,7 +114,7 @@ use crate::data::{Request, Response};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::sync::RwLock;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 fn make_game_thread(server: Arc<Server>) {
     let board = server.board.clone();
@@ -126,14 +126,24 @@ fn make_game_thread(server: Arc<Server>) {
             std::thread::sleep(Duration::from_secs(1));
             gen += 1;
 
+            let start = Instant::now();
+
             board.write().map(|mut board| {
                 board.next();
-                // warn!("{}", board);
+                
+                if gen % 20 == 0 {
+                    server.broadcast(&Response::LEADERBOARD_UPDATE {
+                        leaderboard: board.get_leaderboard()
+                    });
+                    info!("Broadcasting leaderboards...");
+                }
             });
+
+            let elapsed = start.elapsed();
 
             server.broadcast(&Response::GENERATION_PING { gen });
 
-            info!("Generation {} generated.", gen);
+            info!("Generation {} generated in {} ms ({} ns)", gen, elapsed.as_millis(), elapsed.as_nanos());
         }
         info!("Done.");
     });

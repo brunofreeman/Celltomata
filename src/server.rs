@@ -115,6 +115,10 @@ impl ws::Handler for ClientHandler {
                                         erg: player.energy
                                     });
                                     board.set(position, Unit::new_unit(self.id, position, tile));
+                                } else {
+                                    self.send(&Response::NOTICE {
+                                        string: format!("Insufficient energy (cost is {}).", tile.get_cost())
+                                    });
                                 }
                             }
                         }
@@ -159,12 +163,14 @@ impl ws::Handler for ClientHandler {
 
                 // board.set(Position { x: spawn_pos.x - 2, y: spawn_pos.y - 2 }, queen.spawn_unit(TileType::SPAWNER));
 
-                self.out.send(
-                        serde_json::to_string(&Response::IDENTIFY {
-                            id: id,
-                            origin: spawn_pos,
-                        }).unwrap(),
-                    ).unwrap();
+                if let Ok(data) = serde_json::to_string(&Response::IDENTIFY {
+                    id: id,
+                    origin: spawn_pos,
+                }) {
+                    self.out.send(data).map_err(|_| warn!("Failed to send output data"));
+                } else {
+                    warn!("Failed to parse output data")
+                }
             } else {
                 self.disconnect()
             }
@@ -199,7 +205,7 @@ impl ws::Handler for ClientHandler {
 
 impl ClientHandler {
     pub fn send(&self, data: &Response) {
-        info!("Sending message...");
+        debug!("Sending message...");
         self.out
             .send(serde_json::to_string(data).expect("Can not serialize"))
             .expect("Error while sending");
