@@ -1,32 +1,36 @@
-var WS = new WebSocket("ws://10.8.36.184:2794");
+var WS;
 var UID;
-WS.onopen = event => {
-    console.log("Connected to %s", ws.url)
-};
-WS.onclose = event => {
-    console.log("Disconnected from %s", ws.url)
-};
-WS.onmessage = event => {
-    var payload = JSON.parse(event.data);
-    switch (event.type) {
-        case "IDENTIFY":
-            UID = payload.id;
-            console.log("Client UID: %s", UID);
-            break;
-        case "FRAME":
-            fillCells(payload);
-            break;
-    }
-};
-
 var USERNAME;
 var launched = false;
+var ip = "10.8.36.184:2794";
+var protocol = "game-of-strife";
+
 function launchGame() {
     USERNAME = document.getElementById("input").value;
     document.getElementById("landing").remove();
     launched = true;
-    refreshGrid();
     document.getElementById("username").innerHTML = USERNAME;
+
+    WS = new WebSocket("ws://" + ip, protocol);
+    WS.onopen = event => {
+        console.log("Connected to %s", WS.url);
+        refreshGrid();
+    };
+    WS.onclose = event => {
+        console.log("Disconnected from %s", WS.url);
+    };
+    WS.onmessage = event => {
+        var payload = JSON.parse(event.data);
+        switch (event.type) {
+            case "IDENTIFY":
+                UID = payload.id;
+                console.log("Client UID: %s", UID);
+                break;
+            case "FRAME":
+                fillCells(payload);
+                break;
+        }
+    };
 }
 
 
@@ -197,6 +201,9 @@ document.onkeydown = function shiftView(event) {
             break;
         case "ArrowRight":
             shiftCanvas(-canvas.width / 2, 0, time);
+            break;
+        case "Enter":
+            if (!launched) launchGame();
             break;
     }
 }
