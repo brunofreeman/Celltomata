@@ -9,8 +9,8 @@ pub static ALL_OFFSETS: [(isize, isize); 8] = [
     (-1, 1),
 ];
 
-pub const X_SIZE: usize = 50;
-pub const Y_SIZE: usize = 50;
+pub const X_SIZE: usize = 500;
+pub const Y_SIZE: usize = 500;
 
 pub const INIT_ERG: u32 = 2020;
 
