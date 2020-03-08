@@ -7,48 +7,6 @@ var PROTOCOL = "game-of-strife";
 var launched = false;
 var connected = false;
 
-function launchGame() {
-    USERNAME = document.getElementById("username-input").value;
-    var matches = USERNAME.match(USERNAME_REGEX);
-    if (!USERNAME || USERNAME.length < 3 || USERNAME.length > 15 || (matches && matches.length > 0)) {
-        if (USERNAME) {
-            document.getElementById("invalid").innerHTML =
-                "Invalid username. Must be 3 to 15 characters long and consist of only letters, numbers, and underscores."
-        }
-        return;
-    }
-    document.getElementById("landing").remove();
-    document.getElementById("username").innerHTML = USERNAME;
-    launched = true;
-
-    WS = new WebSocket("ws://" + IP, PROTOCOL);
-    WS.onopen = event => {
-        console.log("Connected to %s", WS.url);
-        connected = true;
-        refreshGrid();
-    };
-    WS.onclose = event => {
-        console.log("Disconnected from %s", WS.url);
-    };
-    WS.onmessage = event => {
-        var payload = JSON.parse(event.data);
-        console.log("Got payload", payload);
-        switch (payload.type) {
-            case "IDENTIFY":
-                UID = payload.id;
-                console.log("Client UID: %s", UID);
-                break;
-            case "FRAME":
-                fillCells(payload);
-                break;
-            case "GENERATION_PING":
-                refreshGrid();
-                break;
-        }
-    };
-}
-
-
 var canvas = document.getElementById("canvas");
 var ctx = canvas.getContext("2d");
 
@@ -61,8 +19,56 @@ var cellCounts;
 var scales;
 var cellDims;
 var shifting = false;
+var origin;
 
-refreshGrid = function() {
+function launchGame() {
+    USERNAME = document.getElementById("username-input").value;
+    var matches = USERNAME.match(USERNAME_REGEX);
+    if (!USERNAME || USERNAME.length < 3 || USERNAME.length > 15 || (matches && matches.length > 0)) {
+        if (USERNAME) {
+            document.getElementById("invalid").innerHTML =
+                "Invalid username. Must be 3 to 15 characters long and consist of only letters, numbers, and underscores."
+        }
+        return;
+    }
+
+    document.getElementById("landing").remove();
+    document.getElementById("username").innerHTML = USERNAME;
+    launched = true;
+
+    WS = new WebSocket("ws://" + IP, PROTOCOL);
+    WS.onopen = event => {
+        console.log("Connected to %s", WS.url);
+        connected = true;
+        WS.send(JSON.stringify({
+            type : "NEW_PLAYER",
+            username : USERNAME
+        }));
+    };
+    WS.onclose = event => {
+        console.log("Disconnected from %s", WS.url);
+    };
+    WS.onmessage = event => {
+        var payload = JSON.parse(event.data);
+        //console.log("Got payload", payload);
+        switch (payload.type) {
+            case "IDENTIFY":
+                UID = payload.id;
+                origin = {x: 0, y: 0}; //payload.origin;
+                refreshGrid();
+                //console.log("Client UID: %s", UID);
+                break;
+            case "FRAME":
+                fillCells(payload);
+                break;
+            case "GENERATION_PING":
+                refreshGrid();
+                break;
+        }
+    };
+}
+
+function refreshGrid() {
     resizeGrid();
     drawGrid();
     requestCells();
@@ -100,8 +106,8 @@ function drawGrid() {
 function requestCells() {
     WS.send(JSON.stringify({
         type : "REQUEST_FRAME",
-        x_origin : 0,
-        y_origin : 0,
+        x_origin : origin.x,
+        y_origin : origin.y,
         x_size : cellCounts.x,
         y_size : cellCounts.y
     }));
@@ -146,37 +152,45 @@ document.onclick = function fillSquare(event) {
     ctx.stroke();*/
 }
 
-function shiftCanvas(shiftX, shiftY, time) {
+function shiftView(shiftX, shiftY, time) {
+    //console.log("Shifting (%d, %d)", shiftX, shiftY);
+    if (origin.x + shiftX < 0) shiftX = -origin.x;
+    if (origin.x + shiftX > 99) shiftX = 99 - origin.x;
+    if (origin.y + shiftY < 0) shiftY = -origin.y;
+    if (origin.y + shiftY > 99) shiftY = 99 - origin.y;
+    console.log("Shifting (%d, %d), origin (%d, %d)", shiftX, shiftY, origin.x, origin.y);
     shifting = true;
     var fps = 30;
     var frames = fps * time;
     ctx.globalCompositeOperation = "copy";
     var interval = setInterval(function() {
-        ctx.drawImage(ctx.canvas, shiftX / frames, shiftY / frames)
+        ctx.drawImage(ctx.canvas, cellDims.x * -shiftX / frames, cellDims.y * -shiftY / frames)
     }, time * 1000 / frames);
     setTimeout(function() {
         clearInterval(interval);
         ctx.globalCompositeOperation = "source-over";
         shifting = false;
+        origin.x += shiftX;
+        origin.y += shiftY;
         refreshGrid();
     }, time * 1000);
 }
 
-document.onkeydown = function shiftView(event) {
+document.onkeydown = function keyResponse(event) {
     if (shifting) return;
     var TIME = 0.4;
     switch (event.code) {
         case "ArrowUp":
-            if (connected) shiftCanvas(0, canvas.height / 2, TIME);
+            if (connected) shiftView(0, Math.ceil(-cellCounts.y / 2), TIME);
             break;
         case "ArrowDown":
-            if (connected) shiftCanvas(0, -canvas.height / 2, TIME);
+            if (connected) shiftView(0, Math.floor(cellCounts.y / 2), TIME);
             break;
         case "ArrowLeft":
-            if (connected) shiftCanvas(canvas.width / 2, 0, TIME);
+            if (connected) shiftView(Math.ceil(-cellCounts.x / 2), 0, TIME);
             break;
         case "ArrowRight":
-            if (connected) shiftCanvas(-canvas.width / 2, 0, TIME);
+            if (connected) shiftView(Math.floor(cellCounts.x / 2), 0, TIME);
             break;
         case "Enter":
             if (!launched) launchGame();
