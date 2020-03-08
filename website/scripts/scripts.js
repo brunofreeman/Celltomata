@@ -2,7 +2,7 @@ var WS;
 var UID;
 var USERNAME;
 var USERNAME_REGEX = "(?![_0-9a-zA-Z]+).";
-var IP = "13.57.211.174"; //"127.0.0.1:2794";
+var IP = "13.57.211.174:2794"; //"127.0.0.1:2794";
 var PROTOCOL = "game-of-strife";
 var launched = false;
 var connected = false;
