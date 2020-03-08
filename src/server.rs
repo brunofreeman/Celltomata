@@ -108,6 +108,9 @@ impl ws::Handler for ClientHandler {
                             let energy = board.get_erg_mut(self.id).unwrap();
                             if tile.get_cost() < *energy {
                                 *energy -= tile.get_cost();
+                                self.send(&Response::ENERGY_UPDATE {
+                                    erg: *energy
+                                });
                                 board.set(position, Unit::new_unit(self.id, position, tile));
                             }
                         }
