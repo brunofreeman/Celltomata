@@ -15,19 +15,16 @@ mod server;
 mod utils;
 
 use board::*;
-use uuid::Uuid;
+use data::{Position, TileType, Unit};
 use server::Server;
-use data::{TileType, Unit, Position};
+use uuid::Uuid;
 
 fn main() -> ws::Result<()> {
     let mut board = board::Board::new();
 
     let team_1 = Uuid::new_v4();
 
-    board.set(
-        Position { x: 5, y: 5 },
-        Unit::new_queen(team_1),
-    );
+    board.set(Position { x: 5, y: 5 }, Unit::new_queen(team_1));
 
     board.set(
         Position { x: 8, y: 8 },
@@ -78,7 +75,6 @@ fn main() -> ws::Result<()> {
             ..Default::default()
         },
     );
-    
 
     for _ in 0..50 {
         board.next();
@@ -97,7 +93,6 @@ fn main() -> ws::Result<()> {
         println!();
     }
     println!("{}", s);
-    
 
     return Ok(());
 
@@ -114,11 +109,11 @@ fn main() -> ws::Result<()> {
     // ws::listen("127.0.0.1:2794", |out| Server::new_client(arcserver.clone(), out))
 }
 
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::Duration;
-use std::sync::RwLock;
 use crate::data::{Request, Response};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use std::sync::RwLock;
+use std::time::Duration;
 
 fn make_game_thread(server: Arc<Server>) {
     let board_handle = server.board.clone();
@@ -143,9 +138,9 @@ fn make_game_thread(server: Arc<Server>) {
             gen += 1;
 
             board_handle.write().map(|mut board| board.next());
-            
+
             server.broadcast(&Response::GENERATION_PING);
-            
+
             info!("Generation {} generated.", gen);
         }
         info!("Done.");

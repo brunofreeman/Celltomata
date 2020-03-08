@@ -16,8 +16,8 @@ static ALL_OFFSETS: [(isize, isize); 8] = [
     (-1, 1),
 ];
 
-const X_SIZE: usize = 10;
-const Y_SIZE: usize = 10;
+const X_SIZE: usize = 20;
+const Y_SIZE: usize = 20;
 
 const MAX_HP: u32 = 8;
 const MAX_AM: u32 = 8;
@@ -292,19 +292,18 @@ impl Board {
 
     fn bolster_gen(&mut self) {
         let mut new_board = self.clone();
-        // TODO: ARMOR instead of HP?
-        for (team_id, list) in &self.teams {
-            for &pos in list
-                .iter()
+        self.teams.iter().for_each(|(team_id, list)| {
+            list.iter()
                 .filter(|&&pos| self.within_friendly_range(pos, TileType::BOLSTER, 5))
-            {
-                let unit = new_board.get_mut(pos);
-                unit.am = unit.am.saturating_add(1);
-                if unit.am > MAX_AM {
-                    unit.am = MAX_AM;
-                }
-            }
-        }
+                .for_each(|&pos| {
+                    let unit = new_board.get_mut(pos);
+                    unit.am = unit.am.saturating_add(1);
+                    if unit.am > MAX_AM {
+                        unit.am = MAX_AM;
+                    }
+                });
+        });
+
         *self = new_board;
     }
 

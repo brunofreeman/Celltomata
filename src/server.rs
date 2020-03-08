@@ -31,7 +31,7 @@ impl Server {
         let running = Arc::new(AtomicBool::new(true));
 
         let allow_write = Arc::new(AtomicBool::new(false));
-        
+
         Self {
             running,
             allow_write,
@@ -41,7 +41,7 @@ impl Server {
     }
 
     pub fn broadcast(&self, data: &Response) {
-        self.clients.iter().for_each(|e| { e.value().send(data) });
+        self.clients.iter().for_each(|e| e.value().send(data));
     }
 
     pub fn new_client(arcself: Arc<Self>, out: ws::Sender) -> ClientHandler {
@@ -52,8 +52,7 @@ impl Server {
         };
 
         debug!("Creating a new client (id: {}).", client.id);
-        arcself.clients
-            .insert(client.id, client.clone());
+        arcself.clients.insert(client.id, client.clone());
         client
     }
 
@@ -106,11 +105,11 @@ impl ws::Handler for ClientHandler {
                         .read()
                         .map(|board| board.get_window(x_origin, y_origin, x_size, y_size))
                         .map(|window| {
-                            self.send(&Response::FRAME { 
-                                    x_size: window[0].len(),
-                                    y_size: window.len(),
-                                    window
-                                 });
+                            self.send(&Response::FRAME {
+                                x_size: window[0].len(),
+                                y_size: window.len(),
+                                window,
+                            });
                         });
                     Ok(())
                 }
@@ -145,14 +144,17 @@ impl ws::Handler for ClientHandler {
         let id = self.id;
         info!("Identified client with {}", id);
         self.out
-            .send(serde_json::to_string(&Response::IDENTIFY { id: id }).unwrap())
+            .send(
+                serde_json::to_string(&Response::IDENTIFY {
+                    id: id,
+                    origin: Position::default(),
+                })
+                .unwrap(),
+            )
             .unwrap();
 
         self.server.board.write().map(|mut board| {
-            board.set(
-                Position { x: 5, y: 5 },
-                Unit::new_queen(id),
-            );
+            board.set(Position { x: 5, y: 5 }, Unit::new_queen(id));
 
             board.set(
                 Position { x: 8, y: 8 },
@@ -182,7 +184,7 @@ impl ws::Handler for ClientHandler {
                 },
             );
         });
-        
+
         Ok(())
     }
 

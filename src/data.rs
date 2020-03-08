@@ -39,7 +39,8 @@ pub enum TileType {
 #[serde(tag = "type")]
 pub enum Response {
     IDENTIFY {
-		id: Uuid,
+        id: Uuid,
+        origin: Position,
     },
     GENERATION_PING,
     FRAME {
@@ -61,6 +62,9 @@ pub enum Response {
 #[derive(Deserialize)]
 #[serde(tag = "type")]
 pub enum Request {
+    NEW_PLAYER {
+        username: String,
+    },
     EXIT_GAME,
     REQUEST_FRAME {
         x_origin: usize,
@@ -73,7 +77,7 @@ pub enum Request {
     }
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Hash, Serialize, Deserialize)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Hash, Serialize, Deserialize, Default)]
 pub struct Position {
     pub x: usize,
     pub y: usize,
