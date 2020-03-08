@@ -131,7 +131,7 @@ fn make_game_thread(server: Arc<Server>) {
                 warn!("{}", board);
             });
 
-            server.broadcast(&Response::GENERATION_PING);
+            server.broadcast(&Response::GENERATION_PING { gen });
 
             info!("Generation {} generated.", gen);
         }

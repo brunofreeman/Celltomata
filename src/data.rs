@@ -29,19 +29,13 @@ pub enum Response {
         id: Uuid,
         origin: Position,
     },
-    GENERATION_PING,
+    GENERATION_PING {
+        gen: usize,
+    },
     FRAME {
         x_size: usize,
         y_size: usize,
         window: Vec<Vec<Unit>>
-        /*
-        [
-            [{hp...}, {hp...}, {hp...}],
-            [{hp...}, {hp...}, {hp...}],
-            [{hp...}, {hp...}, {hp...}],
-            [{hp...}, {hp...}, {hp...}],
-        ]
-        */
     }
 }
 
