@@ -10,14 +10,6 @@ var connected = false;
 var canvas = document.getElementById("canvas");
 var ctx = canvas.getContext("2d");
 
-var leaderboard = [
-    {username : "An" , numCells : 100},
-    {username : "Bruno" , numCells : 80},
-    {username : "Emily" , numCells : 60},
-    {username : "Kaden" , numCells : 40},
-    {username : "Tyler" , numCells : 20},
-];
-
 var SCALE = 2;
 var C = 16 * SCALE;
 var R = 9 * SCALE;
@@ -120,18 +112,17 @@ function launchGame() {
                 refreshGrid();
                 break;
             case "LEADERBORD_UPDATE":
-                // TODO: update leaderboard
-                refreshLeaderboard(null);
+                refreshLeaderboard(payload);
                 break;
             case "ENERGY_UPDATE":
                 energy = payload.erg;
                 document.getElementById("energy").innerHTML = energy;
                 break;
             case "NOTICE":
+                document.getElementById("notice").innerHTML = payload.string;
                 break;
         }
     };
-    refreshLeaderboard(null); // remove when An implements the update
 }
 
 document.onclick = function fillSquare(event) {
@@ -192,6 +183,7 @@ function fillCell(cell, x, y) {
 
 function loadSelectingInfo() {
     siDOM = document.getElementById("selecting-info");
+    siDom.style.display = "initial";
     siDOM.innerHTML = "";
     for (var i = 0; i < CELL_TYPES.length; i++) {
         var siEntry = document.createElement("LI");
@@ -202,10 +194,11 @@ function loadSelectingInfo() {
 
 function refreshLeaderboard(payload) {
     lbDOM = document.getElementById("leaderboard");
+    lbDom.style.display = "initial";
     lbDOM.innerHTML = "";
     for (var i = 0; i < leaderboard.length; i++) {
         var lbEntry = document.createElement("LI");
-        lbEntry.appendChild(document.createTextNode(`${leaderboard[i].username}: ${leaderboard[i].numCells}`))
+        lbEntry.appendChild(document.createTextNode(`${payload.leaderboard[i].name}: ${payload.leaderboard[i].score}`))
         lbDOM.appendChild(lbEntry);
     }
 }
