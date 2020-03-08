@@ -141,6 +141,19 @@ impl TileType {
             TileType::QUEEN => 10,
         }
     }
+
+    pub fn get_cost(self) -> u32 {
+        match self {
+            TileType::EMPTY => 0,
+            TileType::BASE => 3,
+            TileType::SPAWNER => 3,
+            TileType::FEEDER => 4,
+            TileType::BOLSTER => 1,
+            TileType::GUARD => 10,
+            TileType::ATTACK => 6,
+            TileType::QUEEN => 1000000000,
+        }
+    }
 }
 
 impl Board {
