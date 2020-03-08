@@ -116,28 +116,19 @@ use std::sync::RwLock;
 use std::time::Duration;
 
 fn make_game_thread(server: Arc<Server>) {
-    let board_handle = server.board.clone();
-    let running_handle = server.running.clone();
-    let allow_write_handle = server.allow_write.clone();
+    let board = server.board.clone();
+    let running = server.running.clone();
 
     let handle = std::thread::spawn(move || {
-        let mut n = 10;
         let mut gen: usize = 0;
-        while running_handle.load(Ordering::SeqCst) {
-            if n == 0 {
-                allow_write_handle.store(true, Ordering::SeqCst);
-                warn!("Allow writing.");
-                std::thread::sleep(Duration::from_secs(10));
-                allow_write_handle.store(false, Ordering::SeqCst);
-                warn!("Lock.");
-                n = 10;
-            } else {
-                std::thread::sleep(Duration::from_secs(1));
-                n -= 1;
-            }
+        while running.load(Ordering::SeqCst) {
+            std::thread::sleep(Duration::from_secs(1));
             gen += 1;
 
-            board_handle.write().map(|mut board| board.next());
+            board.write().map(|mut board| {
+                board.next();
+                warn!("{}", board);
+            });
 
             server.broadcast(&Response::GENERATION_PING);
 

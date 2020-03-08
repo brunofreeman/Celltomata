@@ -19,8 +19,10 @@ static ALL_OFFSETS: [(isize, isize); 8] = [
     (-1, 1),
 ];
 
-const X_SIZE: usize = 100;
-const Y_SIZE: usize = 100;
+const X_SIZE: usize = 50;
+const Y_SIZE: usize = 50;
+
+const INIT_ENERGY: u32 = 50;
 
 const MAX_HP: u32 = 8;
 const MAX_AM: u32 = 8;
@@ -75,17 +77,20 @@ impl Unit {
         }
     }
 
-    pub fn spawn_base(&self) -> Unit {
-        self.spawn_unit(TileType::BASE, 3)
+    pub fn spawn_unit_with_pos(&self, position: Position, tile: TileType) -> Unit {
+        if tile == TileType::EMPTY { return Unit::EMPTY }
+        else {
+            Unit {
+                tile,
+                team: self.team,
+                hp: tile.get_base_hp(),
+                ..Default::default()
+            }
+        }
     }
 
-    pub fn spawn_unit(&self, tile: TileType, hp: u32) -> Unit {
-        Unit {
-            tile,
-            team: self.team,
-            hp,
-            ..Default::default()
-        }
+    pub fn spawn_unit(&self, tile: TileType) -> Unit {
+        self.spawn_unit_with_pos(Position::default(), tile)
     }
 
     pub fn is_same_team_as(&self, other: Unit) -> bool {
@@ -123,9 +128,19 @@ impl fmt::Display for TileType {
     }
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
-pub struct Metadata {
-    target_pos: Position,
+impl TileType {
+    pub fn get_base_hp(self) -> u32 {
+        match self {
+            TileType::EMPTY => 0,
+            TileType::BASE => 3,
+            TileType::SPAWNER => 3,
+            TileType::FEEDER => 4,
+            TileType::BOLSTER => 1,
+            TileType::GUARD => 10,
+            TileType::ATTACK => 6,
+            TileType::QUEEN => 10,
+        }
+    }
 }
 
 impl Board {
@@ -230,6 +245,7 @@ impl Board {
         self.queen_gen();
         self.feeder_gen();
         self.bolster_gen();
+        self.spawner_gen();
         self.guard_gen();
         self.attacker_gen();
     }
@@ -242,7 +258,7 @@ impl Board {
         self.types.get(&TileType::QUEEN).map(|vec| {
             vec.iter().for_each(|&queen_pos| {
                 if let Some(base_pos) = self.nearest_unoccupied_position(queen_pos, 5) {
-                    new_board.set(base_pos, self.get(queen_pos).spawn_base())
+                    new_board.set(base_pos, self.get(queen_pos).spawn_unit(TileType::BASE))
                 }
             });
         });
@@ -250,7 +266,7 @@ impl Board {
         *self = new_board;
     }
 
-    fn kill_team(&mut self, id: Uuid) {
+    pub fn kill_team(&mut self, id: Uuid) {
         let mut new_board = self.clone();
         self.teams.get(&id).map(|set| {
             set.iter().for_each(|&pos| {
@@ -305,6 +321,31 @@ impl Board {
                         unit.am = MAX_AM;
                     }
                 });
+        });
+
+        *self = new_board;
+    }
+
+    fn spawner_gen(&mut self) {
+        let mut new_board = self.clone();
+        let mut rng = rand::thread_rng();
+
+        self.types.get(&TileType::SPAWNER).map(|vec| {
+            vec.iter().for_each(|&spawner_pos| {
+                if let Some(unit_pos) = self.nearest_unoccupied_position(spawner_pos, 2) {
+                    // new_board.set(base_pos, self.get(spawner_pos).spawn_base())
+                    let tile = match rng.gen_range(0, 100) {
+                        0..=89 => TileType::BASE,
+                        90 | 91 => TileType::ATTACK,
+                        92 | 93 => TileType::SPAWNER,
+                        94 | 95 => TileType::FEEDER,
+                        96 | 97 => TileType::BOLSTER,
+                        98 | 99 => TileType::GUARD,
+                        _ => unreachable!(),
+                    };
+                    new_board.set(unit_pos, self.get(spawner_pos).spawn_unit_with_pos(unit_pos, tile))
+                }
+            });
         });
 
         *self = new_board;

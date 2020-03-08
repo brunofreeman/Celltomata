@@ -19,23 +19,15 @@ pub const PROTOCOL: &'static str = "game-of-strife";
 // todo how to not use raw pointers
 pub struct Server {
     pub running: Arc<AtomicBool>,
-    pub allow_write: Arc<AtomicBool>,
     pub board: Arc<RwLock<Board>>,
     pub clients: DashMap<Uuid, ClientHandler>,
 }
 
 impl Server {
     pub fn new() -> Self {
-        let board: Arc<RwLock<Board>> = Arc::new(Board::new().into());
-
-        let running = Arc::new(AtomicBool::new(true));
-
-        let allow_write = Arc::new(AtomicBool::new(false));
-
         Self {
-            running,
-            allow_write,
-            board,
+            running: Arc::new(AtomicBool::new(true)),
+            board: Arc::new(Board::new().into()),
             clients: DashMap::new(),
         }
     }
@@ -139,13 +131,11 @@ impl ws::Handler for ClientHandler {
 
         self.server.board.write().map(|mut board| {
             if let Some(spawn_pos) = board.find_random_safe_position(5) {
-                board.set(spawn_pos, Unit::new_queen(id));
-                board.set(Position { x: spawn_pos.x, y: spawn_pos.y + 1 }, Unit {
-                    hp: 1,
-                    tile: TileType::FEEDER,
-                    team: id,
-                    ..Default::default()
-                });
+                // care package
+                let queen = Unit::new_queen(id);
+                board.set(spawn_pos, queen);
+                board.set(Position { x: spawn_pos.x, y: spawn_pos.y + 1 }, queen.spawn_unit(TileType::FEEDER));
+                board.set(Position { x: spawn_pos.x - 2, y: spawn_pos.y - 2 }, queen.spawn_unit(TileType::SPAWNER));
 
                 self.out
                     .send(
@@ -179,6 +169,10 @@ impl ws::Handler for ClientHandler {
         // });
 
         self.server.remove_client(self.id, false);
+
+        self.server.board.write().map(|mut board| {
+            board.kill_team(self.id);
+        });
 
         match code {
             ws::CloseCode::Normal => info!("Client (id: {}) has closed the connection.", self.id),

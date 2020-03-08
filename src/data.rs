@@ -9,19 +9,6 @@ pub struct Unit {
     pub target_pos: Option<Position>,
 }
 
-/*
-{
-    tile: "QUEEN" | "GUARD" ...
-    team: "adkfsldf-dsfdsfwegw-weqeqwe"
-    hp: 10,
-    am: 0,
-    target_pos: {
-        x: 0,
-        y: 0,
-    }
-}
-*/
-
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub enum TileType {
     EMPTY,
@@ -73,7 +60,8 @@ pub enum Request {
         y_size: usize,
     },
     INPUT {
-        units: Vec<(Position, Unit)>
+        position: Position,
+        unit: Unit,
     }
 }
 
