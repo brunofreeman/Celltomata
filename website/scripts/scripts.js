@@ -1,3 +1,15 @@
+var username;
+var launched = false;
+function launchGame() {
+    //console.log("Launching game...");
+    username = document.getElementById("input").value;
+    document.getElementById("landing").remove();
+    launched = true;
+    refreshGrid();
+    document.getElementById("username").innerHTML = username;
+}
+
+
 var canvas = document.getElementById("canvas");
 var ctx = canvas.getContext("2d");
 
@@ -12,7 +24,6 @@ var scales;
 var cellDims;
 var shifting = false;
 
-
 //console.log("Screen: %d x %d, Window: %d x %d", screen.width, screen.height, window.innerWidth, window.innerHeight);
 //console.log("(%d, %d)", canvas.width / C, canvas.height / R)
 
@@ -22,9 +33,9 @@ refreshGrid = function() {
     fillCells();
 }
 
-refreshGrid();
-
-window.onresize = refreshGrid;
+window.onresize = function() {
+    if (launched) refreshGrid();
+}
 
 function resizeGrid() {
     canvas.width  = window.innerWidth;
