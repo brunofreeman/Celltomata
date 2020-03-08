@@ -8,7 +8,7 @@ canvas {
     top: 0px;
 }
 
-h1 {
+#title {
     position: absolute;
     width: 30%;
     height: 15%;
@@ -18,7 +18,7 @@ h1 {
     font-size: 48px;
 }
 
-h2 {
+#username {
     position: absolute;
     width: 10%;
     height: 5%;
@@ -28,7 +28,7 @@ h2 {
     font-size: 36px;
 }
 
-input {
+#username-input {
     position: absolute;
     width: 20%;
     height: 5%;
@@ -36,10 +36,18 @@ input {
     top: 47.5%;
 }
 
-button {
+#play-button {
     position: absolute;
     width: 10%;
     height: 5%;
     left: 45%;
     top: 55%;
+}
+
+#invalid {
+    position: absolute;
+    width: 10%;
+    height: 5%;
+    left: 45%;
+    top: 60%;
 }

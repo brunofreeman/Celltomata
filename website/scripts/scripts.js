@@ -1,20 +1,30 @@
 var WS;
 var UID;
 var USERNAME;
-var launched = false;
+var USERNAME_REGEX = "(?![_0-9a-zA-Z]+).";
 var IP = "127.0.0.1:2794";
 var PROTOCOL = "game-of-strife";
+var launched = false;
+var connected = false;
 
 function launchGame() {
-    USERNAME = document.getElementById("input").value;
-    if (USERNAME === "") return;
+    USERNAME = document.getElementById("username-input").value;
+    var matches = USERNAME.match(USERNAME_REGEX);
+    if (!USERNAME || USERNAME.length < 3 || USERNAME.length > 15 || (matches && matches.length > 0)) {
+        if (USERNAME) {
+            document.getElementById("invalid").innerHTML =
+                "Invalid username. Must be 3 to 15 characters long and consist of only letters, numbers, and underscores."
+        }
+        return;
+    }
     document.getElementById("landing").remove();
-    launched = true;
     document.getElementById("username").innerHTML = USERNAME;
+    launched = true;
 
     WS = new WebSocket("ws://" + IP, PROTOCOL);
     WS.onopen = event => {
         console.log("Connected to %s", WS.url);
+        connected = true;
         refreshGrid();
     };
     WS.onclose = event => {
@@ -59,7 +69,7 @@ refreshGrid = function() {
 }
 
 window.onresize = function() {
-    if (launched) refreshGrid();
+    if (connected) refreshGrid();
 }
 
 function resizeGrid() {
@@ -157,22 +167,22 @@ document.onkeydown = function shiftView(event) {
     var TIME = 0.4;
     switch (event.code) {
         case "ArrowUp":
-            if (launched) shiftCanvas(0, canvas.height / 2, TIME);
+            if (connected) shiftCanvas(0, canvas.height / 2, TIME);
             break;
         case "ArrowDown":
-            if (launched) shiftCanvas(0, -canvas.height / 2, TIME);
+            if (connected) shiftCanvas(0, -canvas.height / 2, TIME);
             break;
         case "ArrowLeft":
-            if (launched) shiftCanvas(canvas.width / 2, 0, TIME);
+            if (connected) shiftCanvas(canvas.width / 2, 0, TIME);
             break;
         case "ArrowRight":
-            if (launched) shiftCanvas(-canvas.width / 2, 0, TIME);
+            if (connected) shiftCanvas(-canvas.width / 2, 0, TIME);
             break;
         case "Enter":
             if (!launched) launchGame();
             break;
         case "Space": // for testing/debugging
-            if (launched) refreshGrid();
+            if (connected) refreshGrid();
             break;
     }
 }
