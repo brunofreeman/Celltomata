@@ -119,6 +119,7 @@ function launchGame() {
                 document.getElementById("energy").innerHTML = "⚡ " + energy;
                 break;
             case "NOTICE":
+                document.getElementById("notice").style.display = "initial";
                 document.getElementById("notice").innerHTML = payload.string;
                 break;
         }
