@@ -197,7 +197,7 @@ function loadSelectingInfo() {
             siEntry.classList.add("selected-info");
         }
 
-        siEntry.appendChild(document.createTextNode(`${cellTypeSelected == CELL_TYPES[i] ? "> " : ""}${CELL_TYPES[i]} (Cost: ${COSTS[i]})`));
+        siEntry.appendChild(document.createTextNode(`${CELL_TYPES[i]} (Cost: ${COSTS[i]})`));
         siDOM.appendChild(siEntry);
     }
 }

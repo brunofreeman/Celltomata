@@ -28,6 +28,8 @@ pub enum Response {
     IDENTIFY {
         id: Uuid,
         origin: Position,
+        x_size: usize,
+        y_size: usize,
     },
     GENERATION_PING {
         gen: usize,
