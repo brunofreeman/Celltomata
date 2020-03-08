@@ -485,7 +485,6 @@ impl Board {
     }
 
     pub fn get_leaderboard(&self) -> Vec<LeaderboardEntry> {
-
         let mut teams = self.teams.iter().collect::<Vec<_>>();
         teams.sort_unstable_by_key(|(_, set)| set.len());
 

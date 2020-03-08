@@ -197,7 +197,7 @@ function fillCell(cell, x, y) {
 }
 
 function loadSelectingInfo() {
-    siDOM = document.getElementById("selecting-info");
+    var siDOM = document.getElementById("selecting-info");
     siDOM.style.display = "initial";
     siDOM.innerHTML = "";
     for (var i = 0; i < CELL_TYPES.length; i++) {
@@ -213,12 +213,13 @@ function loadSelectingInfo() {
 }
 
 function refreshLeaderboard(payload) {
-    lbDOM = document.getElementById("leaderboard");
+    var lbDOM = document.getElementById("leaderboard");
     lbDOM.style.display = "initial";
     lbDOM.innerHTML = "";
+    var leaderboard = payload.leaderboard;
     for (var i = 0; i < leaderboard.length; i++) {
         var lbEntry = document.createElement("LI");
-        lbEntry.appendChild(document.createTextNode(`${payload.leaderboard[i].name}: ${payload.leaderboard[i].score}`))
+        lbEntry.appendChild(document.createTextNode(`${leaderboard[i].name}: ${leaderboard[i].score}`))
         lbDOM.appendChild(lbEntry);
     }
 }
