@@ -5,6 +5,9 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt::{self, Formatter, Write};
 use uuid::Uuid;
 
+use rand::seq::SliceRandom;
+use rand::Rng;
+
 static ALL_OFFSETS: [(isize, isize); 8] = [
     (-1, 0),
     (0, -1),
@@ -16,8 +19,8 @@ static ALL_OFFSETS: [(isize, isize); 8] = [
     (-1, 1),
 ];
 
-const X_SIZE: usize = 20;
-const Y_SIZE: usize = 20;
+const X_SIZE: usize = 100;
+const Y_SIZE: usize = 100;
 
 const MAX_HP: u32 = 8;
 const MAX_AM: u32 = 8;
@@ -395,6 +398,29 @@ impl Board {
         *self = new_board;
     }
 
+    pub fn find_random_safe_position(&self, distance: usize) -> Option<Position> {
+        let mut rng = rand::thread_rng();
+
+        for _ in 0..50 {
+            let x = rng.gen_range(0, X_SIZE);
+            let y = rng.gen_range(0, Y_SIZE);
+
+            if x <= distance || x >= X_SIZE - distance || y <= distance || y >= Y_SIZE - distance {
+                continue;
+            }
+
+            let position = Position::new(x, y);
+
+            if self
+                .bfs(position, distance as u16, false, |p| self.get(p).is_some())
+                .is_none()
+            {
+                return Some(position);
+            }
+        }
+        None
+    }
+
     // BFS the grid
     fn nearest_unoccupied_position(&self, position: Position, max_depth: u16) -> Option<Position> {
         self.bfs(position, max_depth, true, |pos| self.get(pos).is_empty())
@@ -447,7 +473,6 @@ impl Board {
 
             let mut dirs = ALL_OFFSETS;
             if randomized {
-                use rand::seq::SliceRandom;
                 let mut rng = rand::thread_rng();
                 dirs[0..4].shuffle(&mut rng);
                 dirs[4..8].shuffle(&mut rng);

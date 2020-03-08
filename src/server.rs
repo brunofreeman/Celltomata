@@ -143,46 +143,29 @@ impl ws::Handler for ClientHandler {
     fn on_open(&mut self, _: ws::Handshake) -> ws::Result<()> {
         let id = self.id;
         info!("Identified client with {}", id);
-        self.out
-            .send(
-                serde_json::to_string(&Response::IDENTIFY {
-                    id: id,
-                    origin: Position::default(),
-                })
-                .unwrap(),
-            )
-            .unwrap();
 
         self.server.board.write().map(|mut board| {
-            board.set(Position { x: 5, y: 5 }, Unit::new_queen(id));
-
-            board.set(
-                Position { x: 8, y: 8 },
-                Unit {
+            if let Some(spawn_pos) = board.find_random_safe_position(5) {
+                board.set(spawn_pos, Unit::new_queen(id));
+                board.set(Position { x: spawn_pos.x, y: spawn_pos.y + 1 }, Unit {
                     hp: 1,
                     tile: TileType::FEEDER,
                     team: id,
                     ..Default::default()
-                },
-            );
-            board.set(
-                Position { x: 4, y: 6 },
-                Unit {
-                    hp: 5,
-                    tile: TileType::GUARD,
-                    team: id,
-                    ..Default::default()
-                },
-            );
-            board.set(
-                Position { x: 8, y: 7 },
-                Unit {
-                    hp: 1,
-                    tile: TileType::BOLSTER,
-                    team: id,
-                    ..Default::default()
-                },
-            );
+                });
+
+                self.out
+                    .send(
+                        serde_json::to_string(&Response::IDENTIFY {
+                            id: id,
+                            origin: spawn_pos,
+                        })
+                        .unwrap(),
+                    )
+                    .unwrap();
+            } else {
+                self.disconnect()
+            }
         });
 
         Ok(())
