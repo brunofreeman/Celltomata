@@ -115,7 +115,7 @@ function launchGame() {
                 if (shifting) return;
                 refreshGrid();
                 break;
-            case "LEADERBORD_UPDATE":
+            case "LEADERBOARD_UPDATE":
                 refreshLeaderboard(payload);
                 break;
             case "ENERGY_UPDATE":
