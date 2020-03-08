@@ -19,7 +19,8 @@ canvas {
     font-size: 48px;
 }
 
-#infoplate {
+#info-plate {
+    display: none;
     position: absolute;
     top: 0;
     right: 0;

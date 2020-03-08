@@ -78,6 +78,7 @@ function launchGame() {
     document.getElementById("landing").remove();
     document.getElementById("username").innerHTML = USERNAME;
     document.getElementById("energy").innerHTML =  "⚡ " + energy;
+    document.getElementById("info-plate").style.display = "initial";
     loadSelectingInfo();
     launched = true;
 
@@ -184,7 +185,7 @@ function fillCell(cell, x, y) {
 
 function loadSelectingInfo() {
     siDOM = document.getElementById("selecting-info");
-    siDom.style.display = "initial";
+    siDOM.style.display = "initial";
     siDOM.innerHTML = "";
     for (var i = 0; i < CELL_TYPES.length; i++) {
         var siEntry = document.createElement("LI");
@@ -200,7 +201,7 @@ function loadSelectingInfo() {
 
 function refreshLeaderboard(payload) {
     lbDOM = document.getElementById("leaderboard");
-    lbDom.style.display = "initial";
+    lbDOM.style.display = "initial";
     lbDOM.innerHTML = "";
     for (var i = 0; i < leaderboard.length; i++) {
         var lbEntry = document.createElement("LI");
