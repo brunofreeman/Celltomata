@@ -187,7 +187,12 @@ function loadSelectingInfo() {
     siDOM.innerHTML = "";
     for (var i = 0; i < CELL_TYPES.length; i++) {
         var siEntry = document.createElement("LI");
-        siEntry.appendChild(document.createTextNode(`${cellTypeSelected == CELL_TYPES[i] ? "> " : ""}${CELL_TYPES[i]} (Cost: ${COSTS[i]})`))
+        
+        if (cellTypeSelected == CELL_TYPES[i]) {
+            siEntry.classList.add("selected-info");
+        }
+
+        siEntry.appendChild(document.createTextNode(`${cellTypeSelected == CELL_TYPES[i] ? "> " : ""}${CELL_TYPES[i]} (Cost: ${COSTS[i]})`));
         siDOM.appendChild(siEntry);
     }
 }
