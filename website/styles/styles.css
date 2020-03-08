@@ -18,6 +18,16 @@ h1 {
     font-size: 48px;
 }
 
+h2 {
+    position: absolute;
+    width: 10%;
+    height: 5%;
+    right: 5%;
+    top: 5%;
+    text-align: center;
+    font-size: 36px;
+}
+
 input {
     position: absolute;
     width: 20%;

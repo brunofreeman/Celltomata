@@ -7,10 +7,14 @@
 </head>
 
 <body>
-    <h1>Celltomata</h1>
-    <form action="game.html" method="POST">
-        <input name="username">
-        <button type="submit">Play!</button>
-    </form>
+    <div id="landing">
+        <h1>Celltomata</h1>
+        <input id="input" name="username">
+        <button type="submit" onclick="launchGame()">Play!</button>
+    </div>
+    <canvas id="canvas"></canvas>
+    <h2 id="username"></h2>
 </body>
+
+<script src="scripts/scripts.js"></script>
 </html>
