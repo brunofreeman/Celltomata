@@ -34,7 +34,7 @@ function resizeLanding() {
 }
 
 function textFit(id) { // Not working
-    var elem = document.getElementById(id);
+    /*var elem = document.getElementById(id);
     var div = elem.children[0];
     console.log("Elem: %o", elem);
     console.log("Div: %o", div);
@@ -47,7 +47,7 @@ function textFit(id) { // Not working
     while( elem.height > div.height) {
         div.style.fontSize = parseInt((div.style.fontsize) + 1) + "px";
     }
-    console.log("Font size post: %s", div.style.fontSize);
+    console.log("Font size post: %s", div.style.fontSize);*/
 }
 
 resizeLanding();
