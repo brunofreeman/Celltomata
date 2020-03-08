@@ -31,6 +31,9 @@ function launchGame() {
             case "FRAME":
                 fillCells(payload);
                 break;
+            case "GENERATION_PING":
+                refreshGrid();
+                break;
         }
     };
 }

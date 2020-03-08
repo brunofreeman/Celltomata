@@ -16,6 +16,7 @@ mod utils;
 
 use board::*;
 use uuid::Uuid;
+use server::Server;
 use data::{TileType, Unit, Position};
 
 fn main() -> ws::Result<()> {
@@ -105,7 +106,49 @@ fn main() -> ws::Result<()> {
         .filter_module("ws::handler", log::LevelFilter::Info)
         .init();
 
-    let mut server = server::Server::new();
+    let mut server = Server::new();
 
-    ws::listen("127.0.0.1:2794", |out| server.new_client(out))
+    let mut arcserver = Arc::new(server);
+    make_game_thread(arcserver.clone());
+
+    ws::listen("127.0.0.1:2794", |out| Server::new_client(arcserver.clone(), out))
+}
+
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
+use std::sync::RwLock;
+use crate::data::{Request, Response};
+
+fn make_game_thread(server: Arc<Server>) {
+    let board_handle = server.board.clone();
+    let running_handle = server.running.clone();
+    let allow_write_handle = server.allow_write.clone();
+
+    let handle = std::thread::spawn(move || {
+        let mut n = 10;
+        let mut gen: usize = 0;
+        while running_handle.load(Ordering::SeqCst) {
+            if n == 0 {
+                allow_write_handle.store(true, Ordering::SeqCst);
+                warn!("Allow writing.");
+                std::thread::sleep(Duration::from_secs(10));
+                allow_write_handle.store(false, Ordering::SeqCst);
+                warn!("Lock.");
+                n = 10;
+            } else {
+                std::thread::sleep(Duration::from_secs(1));
+                n -= 1;
+            }
+            gen += 1;
+
+            board_handle.write().map(|mut board| board.next());
+            
+            server.broadcast(&Response::GENERATION_PING);
+            
+            info!("Generation {} generated.", gen);
+        }
+        info!("Done.");
+    });
+    // handle
 }

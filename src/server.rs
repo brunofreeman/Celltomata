@@ -17,89 +17,65 @@ use std::time::Duration;
 pub const PROTOCOL: &'static str = "game-of-strife";
 
 // todo how to not use raw pointers
-pub struct Server<'a> {
+pub struct Server {
     pub running: Arc<AtomicBool>,
     pub allow_write: Arc<AtomicBool>,
     pub board: Arc<RwLock<Board>>,
-    pub thread: JoinHandle<()>,
-    pub clients: DashMap<Uuid, *mut ClientHandler<'a>>,
+    pub clients: DashMap<Uuid, ClientHandler>,
 }
 
-impl<'a> Server<'a> {
+impl Server {
     pub fn new() -> Self {
         let board: Arc<RwLock<Board>> = Arc::new(Board::new().into());
-        let board_handle = board.clone();
 
         let running = Arc::new(AtomicBool::new(true));
-        let running_handle = running.clone();
 
         let allow_write = Arc::new(AtomicBool::new(false));
-        let allow_write_handle = allow_write.clone();
-
-        let handle = std::thread::spawn(move || {
-            let mut n = 10;
-            let mut gen: usize = 0;
-            while running_handle.load(Ordering::SeqCst) {
-                if n == 0 {
-                    allow_write_handle.store(true, Ordering::SeqCst);
-                    warn!("Allow writing.");
-                    std::thread::sleep(Duration::from_secs(10));
-                    allow_write_handle.store(false, Ordering::SeqCst);
-                    warn!("Lock.");
-                    n = 10;
-                } else {
-                    std::thread::sleep(Duration::from_secs(1));
-                    n -= 1;
-                }
-                gen += 1;
-
-                board_handle.write().map(|mut board| board.next());
-                
-                info!("Generation {} generated.", gen);
-            }
-            info!("Done.");
-        });
-
+        
         Self {
             running,
             allow_write,
             board,
             clients: DashMap::new(),
-            thread: handle,
         }
     }
 
-    pub fn new_client(&'a self, out: ws::Sender) -> ClientHandler {
+    pub fn broadcast(&self, data: &Response) {
+        self.clients.iter().for_each(|e| { e.value().send(data) });
+    }
+
+    pub fn new_client(arcself: Arc<Self>, out: ws::Sender) -> ClientHandler {
         let mut client = ClientHandler {
             id: Uuid::new_v4(),
-            server: self,
-            out,
+            server: arcself.clone(),
+            out: Arc::new(out),
         };
 
         debug!("Creating a new client (id: {}).", client.id);
-        self.clients
-            .insert(client.id, &mut client as *mut ClientHandler);
+        arcself.clients
+            .insert(client.id, client.clone());
         client
     }
 
     pub fn remove_client(&self, cid: Uuid, disconnect: bool) {
         let client = self.clients.remove(&cid).unwrap();
         if disconnect {
-            let temp = unsafe { &mut *client.1 };
+            let temp = client.1;
             debug!("Client (id: {}) kicked by the server.", temp.id);
             temp.disconnect();
         }
     }
 }
 
-pub struct ClientHandler<'a> {
+#[derive(Clone)]
+pub struct ClientHandler {
     pub id: Uuid,
-    pub server: &'a Server<'a>,
+    pub server: Arc<Server>,
 
-    pub out: ws::Sender,
+    pub out: Arc<ws::Sender>,
 }
 
-impl<'a> ws::Handler for ClientHandler<'a> {
+impl ws::Handler for ClientHandler {
     fn on_message(&mut self, msg: ws::Message) -> ws::Result<()> {
         // let server = unsafe { &mut *self.server };
         match msg {
@@ -237,7 +213,7 @@ impl<'a> ws::Handler for ClientHandler<'a> {
     }
 }
 
-impl ClientHandler<'_> {
+impl ClientHandler {
     pub fn send(&self, data: &Response) {
         info!("Sending message...");
         self.out
@@ -252,7 +228,7 @@ impl ClientHandler<'_> {
     }
 }
 
-impl Drop for ClientHandler<'_> {
+impl Drop for ClientHandler {
     fn drop(&mut self) {
         debug!("Dropping client (id: {}).", self.id);
     }

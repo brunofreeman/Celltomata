@@ -41,6 +41,7 @@ pub enum Response {
     IDENTIFY {
 		id: Uuid,
     },
+    GENERATION_PING,
     FRAME {
         x_size: usize,
         y_size: usize,
