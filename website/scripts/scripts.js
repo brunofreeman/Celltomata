@@ -127,6 +127,8 @@ function launchGame() {
                 energy = payload.erg;
                 document.getElementById("energy").innerHTML = energy;
                 break;
+            case "NOTICE":
+                break;
         }
     };
     refreshLeaderboard(null); // remove when An implements the update
