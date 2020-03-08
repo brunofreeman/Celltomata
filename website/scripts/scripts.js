@@ -2,16 +2,17 @@ var WS;
 var UID;
 var USERNAME;
 var launched = false;
-var ip = "127.0.0.1:2794";
-var protocol = "game-of-strife";
+var IP = "127.0.0.1:2794";
+var PROTOCOL = "game-of-strife";
 
 function launchGame() {
     USERNAME = document.getElementById("input").value;
+    if (USERNAME === "") return;
     document.getElementById("landing").remove();
     launched = true;
     document.getElementById("username").innerHTML = USERNAME;
 
-    WS = new WebSocket("ws://" + ip, protocol);
+    WS = new WebSocket("ws://" + IP, PROTOCOL);
     WS.onopen = event => {
         console.log("Connected to %s", WS.url);
         refreshGrid();
@@ -38,9 +39,9 @@ function launchGame() {
 var canvas = document.getElementById("canvas");
 var ctx = canvas.getContext("2d");
 
-var scale = 2;
-var C = 16 * scale;
-var R = 9 * scale;
+var SCALE = 2;
+var C = 16 * SCALE;
+var R = 9 * SCALE;
 var cellSize = screen.height / R;
 var cellLineWidth = cellSize / 10;
 var cellCounts;
@@ -83,7 +84,97 @@ function drawGrid() {
     }
 }
 
-function getRandomCells(numCells) {
+function requestCells() {
+    WS.send(JSON.stringify({
+        type : "REQUEST_FRAME",
+        x_origin : 0,
+        y_origin : 0,
+        x_size : cellCounts.x,
+        y_size : cellCounts.y
+    }));
+}
+
+function fillCells(payload) {
+    ctx.lineWidth = cellLineWidth;
+    ctx.strokeStyle = "black";
+    ctx.font = `${cellSize / 1.5}px Arial`;
+    ctx.textAlign = "center"; 
+    ctx.textBaseline = "middle";
+
+    for (var y = 0; y < payload.y_size; y++) {
+        for (var x = 0; x < payload.x_size; x++) {
+            cell = payload.window[y][x];
+            if (cell.tile != "EMPTY") {
+                pxX = x * cellDims.x;
+                pxY = y * cellDims.y;
+                ctx.beginPath();
+                ctx.rect(pxX, pxY, cellDims.x, cellDims.y);
+                ctx.stroke();
+                ctx.fillStyle = cell.team == UID ? "green" : "red";
+                ctx.fill();
+                ctx.fillStyle = "white";
+                ctx.fillText(cell.tile[0], pxX + (cellSize / 2), pxY + (cellSize / 2));
+            }
+        }
+    }
+}
+
+document.onclick = function fillSquare(event) {
+    /*ctx.lineWidth = cellLineWidth;
+    ctx.strokeStyle = "black";
+    ctx.fillStyle = "green";
+    var x = event.clientX;
+    var y = event.clientY;
+    x = x - (x % (cellDims.x));
+    y = y - (y % (cellDims.y));
+    ctx.beginPath();
+    ctx.rect(x, y, cellDims.x, cellDims.y);
+    ctx.fill();
+    ctx.stroke();*/
+}
+
+function shiftCanvas(shiftX, shiftY, time) {
+    shifting = true;
+    var fps = 30;
+    var frames = fps * time;
+    ctx.globalCompositeOperation = "copy";
+    var interval = setInterval(function() {
+        ctx.drawImage(ctx.canvas, shiftX / frames, shiftY / frames)
+    }, time * 1000 / frames);
+    setTimeout(function() {
+        clearInterval(interval);
+        ctx.globalCompositeOperation = "source-over";
+        shifting = false;
+        refreshGrid();
+    }, time * 1000);
+}
+
+document.onkeydown = function shiftView(event) {
+    if (shifting) return;
+    var TIME = 0.4;
+    switch (event.code) {
+        case "ArrowUp":
+            if (launched) shiftCanvas(0, canvas.height / 2, TIME);
+            break;
+        case "ArrowDown":
+            if (launched) shiftCanvas(0, -canvas.height / 2, TIME);
+            break;
+        case "ArrowLeft":
+            if (launched) shiftCanvas(canvas.width / 2, 0, TIME);
+            break;
+        case "ArrowRight":
+            if (launched) shiftCanvas(-canvas.width / 2, 0, TIME);
+            break;
+        case "Enter":
+            if (!launched) launchGame();
+            break;
+        case "Space": // for testing/debugging
+            if (launched) refreshGrid();
+            break;
+    }
+}
+
+/*function getRandomCells(numCells) {
     var types = ["Q", "b", "F", "S"];
     var colors = ["red", "green", "blue"];
     var cells = [];
@@ -96,119 +187,4 @@ function getRandomCells(numCells) {
         cells.push({x: x, y: y, type: type, color: color})
     }
     return cells;
-}
-
-function requestCells() {
-    WS.send(JSON.stringify({
-        type : "REQUEST_FRAME",
-        x_origin : 0,
-        y_origin : 0,
-        x_size : cellCounts.x,
-        y_size : cellCounts.y
-    }));
-}
-
-function fillCells(payload) {
-    console.log("Filling cells...");
-    ctx.lineWidth = cellLineWidth;
-    ctx.strokeStyle = "black";
-    ctx.font = `${cellSize / 1.5}px Arial`;
-    ctx.textAlign = "center"; 
-    ctx.textBaseline = "middle";
-
-    for (var y = 0; y < payload.y_size; y++) {
-        for (var x = 0; x < payload.x_size; x++) {
-            cell = payload.window[y][x];
-            pxX = x * cellDims.x;
-            pxY = y * cellDims.y;
-
-            ctx.beginPath();
-            ctx.rect(pxX, pxY, cellDims.x, cellDims.y);
-            cellTeam = cell.team;
-            ctx.fillStyle = cellTeam == UID ? "green" : "red";
-            ctx.stroke();
-            var type = cell.tile;
-
-            if (type != "EMPTY") {
-                ctx.fill();
-                ctx.fillStyle = "white";
-                ctx.fillText(type[0], pxX + (cellSize / 2), pxY + (cellSize / 2));
-            }
-        }
-    }
-
-    console.log("Done filling cells...");
-    /*var x, y;
-    for (var i = 0; i < cells.length; i++) {
-        //console.log("Drawing %o", cells[i]);
-        x = cells[i].x * cellDims.x;
-        y = cells[i].y * cellDims.y;
-
-        ctx.beginPath();
-        ctx.rect(x, y, cellDims.x, cellDims.y);
-        ctx.fillStyle = cells[i].color;
-        ctx.fill();
-        ctx.stroke();
-        ctx.fillStyle = "white";
-        ctx.fillText(cells[i].type, x + (cellSize / 2), y + (cellSize / 2));
-    }*/
-}
-
-/*document.onclick = function fillSquare(event) {
-    //console.log("Begin fillSquare()");
-    ctx.lineWidth = cellLineWidth;
-    ctx.strokeStyle = "black";
-    ctx.fillStyle = "green";
-    var x = event.clientX;
-    var y = event.clientY;
-    x = x - (x % (cellDims.x));
-    y = y - (y % (cellDims.y));
-    //console.log("(%d, %d) --> (%d, %d)", x, y, c, r);
-    ctx.beginPath();
-    ctx.rect(x, y, cellDims.x, cellDims.y);
-    ctx.fill();
-    ctx.stroke();
 }*/
-
-function shiftCanvas(shiftX, shiftY, time) {
-    shifting = true;
-    var fps = 30;
-    var frames = fps * time;
-    var interval = setInterval(function() {instantShiftCanvas(shiftX / frames, shiftY / frames)}, time * 1000 / frames);
-    setTimeout(function() {
-        clearInterval(interval);
-        shifting = false;
-        refreshGrid();
-    }, time * 1000);
-}
-
-function instantShiftCanvas(shiftX, shiftY) {
-    ctx.globalCompositeOperation = "copy";
-    ctx.drawImage(ctx.canvas, shiftX, shiftY);
-    ctx.globalCompositeOperation = "source-over"
-}
-
-document.onkeydown = function shiftView(event) {
-    if (shifting) return;
-    var time = 0.4;
-    switch (event.code) {
-        case "ArrowUp":
-            shiftCanvas(0, canvas.height / 2, time);
-            break;
-        case "ArrowDown":
-            shiftCanvas(0, -canvas.height / 2, time);
-            break;
-        case "ArrowLeft":
-            shiftCanvas(canvas.width / 2, 0, time);
-            break;
-        case "ArrowRight":
-            shiftCanvas(-canvas.width / 2, 0, time);
-            break;
-        case "Enter":
-            if (!launched) launchGame();
-            break;
-        case "Space": // for testing
-            refreshGrid();
-            break;
-    }
-}
