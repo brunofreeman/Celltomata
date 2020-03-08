@@ -85,7 +85,7 @@ function launchGame() {
 
     document.getElementById("landing").remove();
     document.getElementById("username").innerHTML = USERNAME;
-    document.getElementById("energy").innerHTML = energy;
+    document.getElementById("energy").innerHTML =  "⚡ " + energy;
     loadSelectingInfo();
     launched = true;
 
@@ -125,7 +125,7 @@ function launchGame() {
                 break;
             case "ENERGY_UPDATE":
                 energy = payload.erg;
-                document.getElementById("energy").innerHTML = energy;
+                document.getElementById("energy").innerHTML = "⚡ " + energy;
                 break;
         }
     };
