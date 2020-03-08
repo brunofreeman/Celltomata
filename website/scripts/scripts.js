@@ -2,7 +2,7 @@ var WS;
 var UID;
 var USERNAME;
 var launched = false;
-var ip = "10.8.36.184:2794";
+var ip = "127.0.0.1:2794";
 var protocol = "game-of-strife";
 
 function launchGame() {
@@ -21,7 +21,8 @@ function launchGame() {
     };
     WS.onmessage = event => {
         var payload = JSON.parse(event.data);
-        switch (event.type) {
+        console.log("Got payload", payload);
+        switch (payload.type) {
             case "IDENTIFY":
                 UID = payload.id;
                 console.log("Client UID: %s", UID);
@@ -108,6 +109,7 @@ function requestCells() {
 }
 
 function fillCells(payload) {
+    console.log("Filling cells...");
     ctx.lineWidth = cellLineWidth;
     ctx.strokeStyle = "black";
     ctx.font = `${cellSize / 1.5}px Arial`;
@@ -127,14 +129,16 @@ function fillCells(payload) {
             ctx.fillStyle = cellTeam == UID ? "green" : "red";
 
             ctx.stroke();
-            ctx.fillStyle = "white";
             var type = cell.tile;
             if (type != "EMPTY") {
-                ctx.fillText(type, pxX + (cellSize / 2), pxY + (cellSize / 2));
+                ctx.fill();
+                ctx.fillStyle = "white";
+                ctx.fillText(type[0], pxX + (cellSize / 2), pxY + (cellSize / 2));
             }
         }
     }
 
+    console.log("Done filling cells...");
     /*var x, y;
     for (var i = 0; i < cells.length; i++) {
         //console.log("Drawing %o", cells[i]);

@@ -16,8 +16,8 @@ static ALL_OFFSETS: [(isize, isize); 8] = [
     (-1, 1),
 ];
 
-const X_SIZE: usize = 10;
-const Y_SIZE: usize = 10;
+const X_SIZE: usize = 20;
+const Y_SIZE: usize = 20;
 
 const MAX_HP: u32 = 8;
 const MAX_AM: u32 = 8;

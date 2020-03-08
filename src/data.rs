@@ -9,6 +9,19 @@ pub struct Unit {
     pub target_pos: Option<Position>,
 }
 
+/*
+{
+    tile: "QUEEN" | "GUARD" ...
+    team: "adkfsldf-dsfdsfwegw-weqeqwe"
+    hp: 10,
+    am: 0,
+    target_pos: {
+        x: 0,
+        y: 0,
+    }
+}
+*/
+
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub enum TileType {
     EMPTY,
@@ -29,8 +42,6 @@ pub enum Response {
 		id: Uuid,
     },
     FRAME {
-        x_origin: usize,
-        y_origin: usize,
         x_size: usize,
         y_size: usize,
         window: Vec<Vec<Unit>>

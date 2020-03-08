@@ -1,5 +1,4 @@
 #![allow(unused)]
-#![feature(vec_remove_item)]
 
 extern crate serde;
 extern crate serde_json;

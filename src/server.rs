@@ -1,18 +1,18 @@
+use dashmap::DashMap;
 use serde_json;
-use ws;
-use uuid::Uuid;
 use std::collections::HashMap;
 use std::sync::Arc;
-use dashmap::DashMap;
 use std::sync::RwLock;
+use uuid::Uuid;
+use ws;
 
-use crate::server;
 use crate::board::*;
-use crate::data::{Response, Request};
-use crate::data::{TileType, Unit, Position};
-use std::time::Duration;
-use std::thread::JoinHandle;
+use crate::data::{Position, TileType, Unit};
+use crate::data::{Request, Response};
+use crate::server;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::thread::JoinHandle;
+use std::time::Duration;
 
 pub const PROTOCOL: &'static str = "game-of-strife";
 
@@ -29,31 +29,35 @@ impl<'a> Server<'a> {
     pub fn new() -> Self {
         let board: Arc<RwLock<Board>> = Arc::new(Board::new().into());
         let board_handle = board.clone();
-        
+
         let running = Arc::new(AtomicBool::new(true));
         let running_handle = running.clone();
 
         let allow_write = Arc::new(AtomicBool::new(false));
-        let allow_write_handle = running.clone();
+        let allow_write_handle = allow_write.clone();
 
         let handle = std::thread::spawn(move || {
             let mut n = 10;
+            let mut gen: usize = 0;
             while running_handle.load(Ordering::SeqCst) {
                 if n == 0 {
                     allow_write_handle.store(true, Ordering::SeqCst);
-                    println!("Allow writing.");
-                    std::thread::sleep(Duration::from_secs(5));
+                    warn!("Allow writing.");
+                    std::thread::sleep(Duration::from_secs(10));
                     allow_write_handle.store(false, Ordering::SeqCst);
-                    println!("Lock.");
+                    warn!("Lock.");
                     n = 10;
                 } else {
                     std::thread::sleep(Duration::from_secs(1));
                     n -= 1;
                 }
+                gen += 1;
 
                 board_handle.write().map(|mut board| board.next());
-                println!("New generation generated.");
+                
+                info!("Generation {} generated.", gen);
             }
+            info!("Done.");
         });
 
         Self {
@@ -73,7 +77,8 @@ impl<'a> Server<'a> {
         };
 
         debug!("Creating a new client (id: {}).", client.id);
-        self.clients.insert(client.id, &mut client as *mut ClientHandler);
+        self.clients
+            .insert(client.id, &mut client as *mut ClientHandler);
         client
     }
 
@@ -114,6 +119,25 @@ impl<'a> ws::Handler for ClientHandler<'a> {
                 //     // debug!("Successfully setted connecting instance.");
                 //     // Ok(())
                 // }
+                Ok(Request::REQUEST_FRAME {
+                    x_origin,
+                    y_origin,
+                    x_size,
+                    y_size,
+                }) => {
+                    self.server
+                        .board
+                        .read()
+                        .map(|board| board.get_window(x_origin, y_origin, x_size, y_size))
+                        .map(|window| {
+                            self.send(&Response::FRAME { 
+                                    x_size: window[0].len(),
+                                    y_size: window.len(),
+                                    window
+                                 });
+                        });
+                    Ok(())
+                }
                 Ok(Request::EXIT_GAME) => {
                     // self.instance_id.map(|o| {
                     //     server
@@ -128,10 +152,7 @@ impl<'a> ws::Handler for ClientHandler<'a> {
                 //     //     .map(|o| server.get_instance(o).map(|i| i.process(self.id, data)));
                 //     // Ok(())
                 // }
-                _ => Err(ws::Error::new(
-                    ws::ErrorKind::Protocol,
-                    "Unrecognized data",
-                )),
+                _ => Err(ws::Error::new(ws::ErrorKind::Protocol, "Unrecognized data")),
                 Err(_) => Err(ws::Error::new(
                     ws::ErrorKind::Protocol,
                     "Unparsable data sent",
@@ -145,9 +166,47 @@ impl<'a> ws::Handler for ClientHandler<'a> {
     }
 
     fn on_open(&mut self, _: ws::Handshake) -> ws::Result<()> {
+        let id = self.id;
+        info!("Identified client with {}", id);
         self.out
-            .send(serde_json::to_string(&Response::IDENTIFY { id: self.id }).unwrap())
+            .send(serde_json::to_string(&Response::IDENTIFY { id: id }).unwrap())
             .unwrap();
+
+        self.server.board.write().map(|mut board| {
+            board.set(
+                Position { x: 5, y: 5 },
+                Unit::new_queen(id),
+            );
+
+            board.set(
+                Position { x: 8, y: 8 },
+                Unit {
+                    hp: 1,
+                    tile: TileType::FEEDER,
+                    team: id,
+                    ..Default::default()
+                },
+            );
+            board.set(
+                Position { x: 4, y: 6 },
+                Unit {
+                    hp: 5,
+                    tile: TileType::GUARD,
+                    team: id,
+                    ..Default::default()
+                },
+            );
+            board.set(
+                Position { x: 8, y: 7 },
+                Unit {
+                    hp: 1,
+                    tile: TileType::BOLSTER,
+                    team: id,
+                    ..Default::default()
+                },
+            );
+        });
+        
         Ok(())
     }
 
@@ -168,8 +227,8 @@ impl<'a> ws::Handler for ClientHandler<'a> {
         self.server.remove_client(self.id, false);
 
         match code {
-            ws::CloseCode::Normal => debug!("Client (id: {}) has closed the connection.", self.id),
-            ws::CloseCode::Away => debug!("Client (id: {}) is leaving the website.", self.id),
+            ws::CloseCode::Normal => info!("Client (id: {}) has closed the connection.", self.id),
+            ws::CloseCode::Away => info!("Client (id: {}) is leaving the website.", self.id),
             _ => warn!(
                 "Client (id: {}) has encountered an error ({:?}): {}.",
                 self.id, code, reason
@@ -180,6 +239,7 @@ impl<'a> ws::Handler for ClientHandler<'a> {
 
 impl ClientHandler<'_> {
     pub fn send(&self, data: &Response) {
+        info!("Sending message...");
         self.out
             .send(serde_json::to_string(data).expect("Can not serialize"))
             .expect("Error while sending");
