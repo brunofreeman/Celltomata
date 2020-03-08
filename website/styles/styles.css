@@ -51,3 +51,7 @@ canvas {
     left: 45%;
     top: 60%;
 }
+
+#leaderboard {
+    position: absolute;
+}
