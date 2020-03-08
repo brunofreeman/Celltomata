@@ -47,6 +47,7 @@ impl Server {
     pub fn new_client(arcself: Arc<Self>, out: ws::Sender) -> ClientHandler {
         let mut client = ClientHandler {
             id: Uuid::new_v4(),
+            name: None,
             server: arcself.clone(),
             out: Arc::new(out),
         };
@@ -69,6 +70,7 @@ impl Server {
 #[derive(Clone)]
 pub struct ClientHandler {
     pub id: Uuid,
+    pub name: Option<String>,
     pub server: Arc<Server>,
 
     pub out: Arc<ws::Sender>,
@@ -79,21 +81,12 @@ impl ws::Handler for ClientHandler {
         // let server = unsafe { &mut *self.server };
         match msg {
             ws::Message::Text(buf) => match serde_json::from_str::<Request>(&buf) {
-                // Ok(Request::JOIN_GAME { name, game_size }) => {
-                //     // let instance_id = server.find_or_new_instance(game_size);
-                //     // let joined = server
-                //     //     .get_instance(instance_id)
-                //     //     .unwrap()
-                //     //     .add_client(self as *mut ClientHandler, name);
-
-                //     // if !joined {
-                //     //     return Err(ws::Error::new(ws::ErrorKind::Capacity, "Instance is full"));
-                //     // }
-
-                //     // self.instance_id = Some(instance_id);
-                //     // debug!("Successfully setted connecting instance.");
-                //     // Ok(())
-                // }
+                Ok(Request::NEW_PLAYER {
+                    username
+                }) => {
+                    self.name = Some(username);
+                    Ok(())
+                }
                 Ok(Request::REQUEST_FRAME {
                     x_origin,
                     y_origin,
