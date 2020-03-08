@@ -48,7 +48,8 @@ canvas {
 #username-input {
     position: absolute;
     width: 20%;
-    height: 5%;
+    height: 40px;
+    font-size: 20px;
     left: 40%;
     top: 47.5%;
 }

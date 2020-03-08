@@ -166,6 +166,8 @@ impl ws::Handler for ClientHandler {
                 if let Ok(data) = serde_json::to_string(&Response::IDENTIFY {
                     id: id,
                     origin: spawn_pos,
+                    x_size: constants::X_SIZE,
+                    y_size: constants::Y_SIZE,
                 }) {
                     self.out.send(data).map_err(|_| warn!("Failed to send output data"));
                 } else {
