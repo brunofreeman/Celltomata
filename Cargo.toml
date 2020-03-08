@@ -1,5 +1,5 @@
 [package]
-name = "TileGame"
+name = "tile_game"
 version = "0.1.0"
 authors = ["Avarel <avarelpm@gmail.com>"]
 edition = "2018"

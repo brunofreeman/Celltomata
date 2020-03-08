@@ -37,6 +37,9 @@ pub enum Response {
         y_size: usize,
         window: Vec<Vec<Unit>>
     },
+    NOTICE {
+        string: String,
+    },
     ENERGY_UPDATE {
         erg: u32,
     },
