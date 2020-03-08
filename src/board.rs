@@ -1,9 +1,9 @@
+use crate::data::{Position, TileType, Unit};
 use crate::utils;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt::{self, Formatter, Write};
 use uuid::Uuid;
-use crate::data::{TileType, Unit, Position};
 
 static ALL_OFFSETS: [(isize, isize); 8] = [
     (-1, 0),
@@ -16,8 +16,8 @@ static ALL_OFFSETS: [(isize, isize); 8] = [
     (-1, 1),
 ];
 
-const X_SIZE: usize = 20;
-const Y_SIZE: usize = 20;
+const X_SIZE: usize = 10;
+const Y_SIZE: usize = 10;
 
 const MAX_HP: u32 = 8;
 const MAX_AM: u32 = 8;
@@ -26,7 +26,7 @@ const GRD_DMG: u32 = 3;
 
 #[derive(Clone)]
 pub struct Board {
-    grid: [[Unit; X_SIZE]; Y_SIZE],
+    grid: HashMap<Position, Unit>,
 
     // Map between team UUID and positions of their cells.
     teams: HashMap<Uuid, HashSet<Position>>,
@@ -40,7 +40,7 @@ impl fmt::Display for Board {
         let mut s = String::new();
         for y in 0..Y_SIZE {
             for x in 0..X_SIZE {
-                write!(&mut s, "{}", self.grid[y][x]);
+                write!(&mut s, "{}", self.get(Position::new(x, y)));
             }
             s.push('\n');
         }
@@ -60,7 +60,7 @@ impl Unit {
         team: Uuid::nil(),
         hp: 0,
         am: 0,
-        target_pos: Some(Position::new(0, 0))
+        target_pos: Some(Position::new(0, 0)),
     };
 
     pub fn new_queen(team_id: Uuid) -> Unit {
@@ -99,7 +99,9 @@ impl Unit {
 }
 
 impl Default for Unit {
-    fn default() -> Self { Self::EMPTY }
+    fn default() -> Self {
+        Self::EMPTY
+    }
 }
 
 impl fmt::Display for TileType {
@@ -123,11 +125,10 @@ pub struct Metadata {
     target_pos: Position,
 }
 
-
 impl Board {
     pub fn new() -> Self {
         Self {
-            grid: [[Unit::EMPTY; X_SIZE]; Y_SIZE],
+            grid: HashMap::new(),
             teams: HashMap::new(),
             types: HashMap::new(),
         }
@@ -192,27 +193,22 @@ impl Board {
     }
 
     fn adj_unit(&self, position: Position, offset: (isize, isize)) -> Option<Unit> {
-        self.adj_position(position, offset)
-            .map(|Position { x, y }| self.grid[y][x])
+        self.adj_position(position, offset).map(|pos| self.get(pos))
     }
 
-    pub fn get(&self, Position { x, y }: Position) -> Unit {
-        self.grid[y][x]
+    pub fn get(&self, pos: Position) -> Unit {
+        self.grid.get(&pos).copied().unwrap_or(Unit::EMPTY)
     }
 
-    pub fn get_ref(&self, Position { x, y }: Position) -> &Unit {
-        &self.grid[y][x]
-    }
-
-    pub fn get_mut(&mut self, Position { x, y }: Position) -> &mut Unit {
-        &mut self.grid[y][x]
+    pub fn get_mut(&mut self, pos: Position) -> &mut Unit {
+        utils::get_mut_or_put(&mut self.grid, pos, || Unit::EMPTY)
     }
 
     pub fn set(&mut self, position: Position, unit: Unit) {
         self.delete(position);
         utils::get_mut_or_put(&mut self.types, unit.tile, || HashSet::new()).insert(position);
         utils::get_mut_or_put(&mut self.teams, unit.team, || HashSet::new()).insert(position);
-        self.grid[position.y][position.x] = unit;
+        self.grid.insert(position, unit);
     }
 
     pub fn delete(&mut self, position: Position) -> Unit {
@@ -223,7 +219,7 @@ impl Board {
         self.teams
             .get_mut(&unit.team)
             .map(|set| set.remove(&position));
-        self.grid[position.y][position.x] = Unit::EMPTY;
+        self.grid.remove(&position);
         unit
     }
 
@@ -239,13 +235,14 @@ impl Board {
         let mut new_board = self.clone();
 
         // Queen will fill one cell as close to itself as possible with a base unit (equidistant is chosen randomly)
-        if let Some(vec) = self.types.get(&TileType::QUEEN) {
-            for &queen_pos in vec {
+        // if let Some(vec) = self.types.get(&TileType::QUEEN) {
+        self.types.get(&TileType::QUEEN).map(|vec| {
+            vec.iter().for_each(|&queen_pos| {
                 if let Some(base_pos) = self.nearest_unoccupied_position(queen_pos, 5) {
                     new_board.set(base_pos, self.get(queen_pos).spawn_base())
                 }
-            }
-        }
+            });
+        });
 
         *self = new_board;
     }
@@ -322,7 +319,8 @@ impl Board {
 
                         if target_unit.am != 0 {
                             if target_unit.am < ATK_DMG {
-                                target_unit.hp = target_unit.hp.saturating_sub(GRD_DMG - target_unit.am);
+                                target_unit.hp =
+                                    target_unit.hp.saturating_sub(GRD_DMG - target_unit.am);
                                 target_unit.am = 0;
                             } else {
                                 target_unit.am = target_unit.am.saturating_sub(GRD_DMG);
@@ -365,10 +363,11 @@ impl Board {
                 if let Some(enemy_pos) = self.nearest_enemy_position(attacker_pos, 5) {
                     if self.is_adj_position(attacker_pos, enemy_pos) {
                         let target_unit = new_board.get_mut(enemy_pos);
-                        
+
                         if target_unit.am != 0 {
                             if target_unit.am < ATK_DMG {
-                                target_unit.hp = target_unit.hp.saturating_sub(ATK_DMG - target_unit.am);
+                                target_unit.hp =
+                                    target_unit.hp.saturating_sub(ATK_DMG - target_unit.am);
                                 target_unit.am = 0;
                             } else {
                                 target_unit.am = target_unit.am.saturating_sub(ATK_DMG);
@@ -399,9 +398,7 @@ impl Board {
 
     // BFS the grid
     fn nearest_unoccupied_position(&self, position: Position, max_depth: u16) -> Option<Position> {
-        self.bfs(position, max_depth, true, |pos| {
-            self.get_ref(pos).is_empty()
-        })
+        self.bfs(position, max_depth, true, |pos| self.get(pos).is_empty())
     }
 
     fn nearest_enemy_position(&self, position: Position, max_depth: u16) -> Option<Position> {
@@ -410,7 +407,7 @@ impl Board {
             None
         } else {
             self.bfs(position, max_depth, true, |pos| {
-                let target = self.get_ref(pos);
+                let target = self.get(pos);
                 target.is_some() && !target.is_same_team_as(unit)
             })
         }
@@ -470,12 +467,24 @@ impl Board {
         None
     }
 
-    pub fn get_window(&self, x_origin: usize, y_origin: usize, x_size: usize, y_size: usize) -> Vec<Vec<Unit>> {
-        let mut vec = Vec::new();
+    pub fn get_window(
+        &self,
+        x_origin: usize,
+        y_origin: usize,
+        x_size: usize,
+        y_size: usize,
+    ) -> Vec<Vec<Unit>> {
         let x_min = x_origin.min(X_SIZE);
         let x_max = (x_origin + x_size).min(X_SIZE);
-        for y in y_origin.min(Y_SIZE)..(y_origin + y_size).min(Y_SIZE) {
-            vec.push(self.grid[y][x_min..x_max].to_vec())
+        let y_min = y_origin.min(Y_SIZE);
+        let y_max = (y_origin + y_size).min(Y_SIZE);
+        let mut vec = Vec::with_capacity(y_max - y_min);
+        for y in y_min..y_max {
+            let mut inner_vec = Vec::with_capacity(x_max - x_min);
+            for x in x_min..x_max {
+                inner_vec.push(self.get(Position::new(x, y)))
+            }
+            vec.push(inner_vec);
         }
         vec
     }
