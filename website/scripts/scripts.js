@@ -10,6 +10,14 @@ var connected = false;
 var canvas = document.getElementById("canvas");
 var ctx = canvas.getContext("2d");
 
+var leaderboard = [
+    {username : "An" , numCells : 100},
+    {username : "Bruno" , numCells : 80},
+    {username : "Emily" , numCells : 60},
+    {username : "Kaden" , numCells : 40},
+    {username : "Tyler" , numCells : 20},
+];
+
 var SCALE = 2;
 var C = 16 * SCALE;
 var R = 9 * SCALE;
@@ -18,8 +26,8 @@ var cellLineWidth = cellSize / 10;
 var cellCounts;
 var scales;
 var cellDims;
-var shifting = false;
 var origin;
+var shifting = false;
 
 function launchGame() {
     USERNAME = document.getElementById("username-input").value;
@@ -64,8 +72,24 @@ function launchGame() {
             case "GENERATION_PING":
                 refreshGrid();
                 break;
+            case "LEADERBORD_UPDATE":
+                // TODO: update leaderboard
+                refreshLeaderboard(null);
+                break;
         }
     };
+    refreshLeaderboard(null); // remove when An implements the update
+}
+
+function refreshLeaderboard(payload) {
+    console.log("Refreshing leaderboard");
+    lbDOM = document.getElementById("leaderboard");
+    lbDOM.innerHTML = "";
+    for (var i = 0; i < leaderboard.length; i++) {
+        var lbEntry = document.createElement("LI");
+        lbEntry.appendChild(document.createTextNode(`${leaderboard[i].username}: ${leaderboard[i].numCells}`))
+        lbDOM.appendChild(lbEntry);
+    }
 }
 
 function refreshGrid() {
