@@ -2,7 +2,7 @@ var WS;
 var UID;
 var USERNAME;
 var USERNAME_REGEX = "(?![_0-9a-zA-Z]+).";
-var IP = "127.0.0.1:2794";
+var IP = "13.57.211.174"; //"127.0.0.1:2794";
 var PROTOCOL = "game-of-strife";
 var launched = false;
 var connected = false;
@@ -143,19 +143,28 @@ document.onclick = function fillSquare(event) {
     }
     if (energy - COSTS[CELL_TYPES.indexOf(cellTypeSelected)] >= 0) {
         // fillCell(cell, x, y);
-        submitCell(cell);
+        WS.send(JSON.stringify({
+            type : "PUT",
+            tile : cell.tile,
+            position : {
+                x: cell.pos.x,
+                y: cell.pos.y
+            }
+        }));
     }
 }
 
-function submitCell(cell) {
-    WS.send(JSON.stringify({
-        type : "PUT",
-        tile : cell.tile,
-        position : {
-            x: cell.pos.x,
-            y: cell.pos.y
+function drawGrid() {
+    ctx.lineWidth = cellLineWidth;
+    ctx.strokeStyle = "black";
+    
+    for (var c = 0; c < cellCounts.x; c++) {
+        for (var r = 0; r < cellCounts.y; r++) {
+            ctx.beginPath();
+            ctx.rect(c * cellDims.x, r * cellDims.y, cellDims.x, cellDims.y);
+            ctx.stroke();
         }
-    }));
+    }
 }
 
 function fillCells(payload) {
@@ -179,6 +188,7 @@ function fillCell(cell, x, y) {
         ctx.beginPath();
         ctx.rect(pxX, pxY, cellDims.x, cellDims.y);
         ctx.stroke();
+
         ctx.fillStyle = cell.team == UID ? "green" : "red";
         ctx.fill();
         ctx.fillStyle = "white";
@@ -229,24 +239,7 @@ function resizeGrid() {
     canvas.height = window.innerHeight;
     cellCounts = {x: Math.floor(canvas.width / cellSize), y: Math.floor(canvas.height / cellSize)};
     scales = {x: canvas.width / cellSize / cellCounts.x, y: canvas.height / cellSize / cellCounts.y};
-    updateCellDims();
-}
-
-function updateCellDims() {
     cellDims = {x: cellSize * scales.x, y: cellSize * scales.y};
-}
-
-function drawGrid() {
-    ctx.lineWidth = cellLineWidth;
-    ctx.strokeStyle = "black";
-    
-    for (var c = 0; c < cellCounts.x; c++) {
-        for (var r = 0; r < cellCounts.y; r++) {
-            ctx.beginPath();
-            ctx.rect(c * cellDims.x, r * cellDims.y, cellDims.x, cellDims.y);
-            ctx.stroke();
-        }
-    }
 }
 
 function requestCells() {
@@ -311,10 +304,6 @@ document.onkeydown = function keyResponse(event) {
             break;
         case "Enter":
             if (!launched) launchGame();
-            else if (!submitted) {
-                submitCells();
-                submitted = true;
-            }
             break;
         /*case "Space": // for testing/debugging
             if (connected) refreshGrid();
