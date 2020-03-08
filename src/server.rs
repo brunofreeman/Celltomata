@@ -1,22 +1,27 @@
 use serde_json;
-use uuid::Uuid;
 use ws;
-use crate::server;
+use uuid::Uuid;
 use std::collections::HashMap;
-use crate::msg::{Response, Request};
 use std::sync::Arc;
 use dashmap::DashMap;
+
+use crate::server;
+use crate::board::*;
+use crate::data::{Response, Request};
+use crate::data::{TileType, Unit, Position};
 
 pub const PROTOCOL: &'static str = "game-of-strife";
 
 // todo how to not use raw pointers
 pub struct Server<'a> {
+    pub board: Board,
     pub clients: DashMap<Uuid, *mut ClientHandler<'a>>,
 }
 
 impl<'a> Server<'a> {
     pub fn new() -> Self {
         Self {
+            board: Board::new(),
             clients: DashMap::new()
         }
     }
@@ -25,7 +30,7 @@ impl<'a> Server<'a> {
         let mut client = ClientHandler {
             id: Uuid::new_v4(),
             server: self,
-            out: out,
+            out,
         };
 
         // debug!("Creating a new client (id: {}).", client.id);
@@ -87,6 +92,10 @@ impl<'a> ws::Handler for ClientHandler<'a> {
                 //     //     .map(|o| server.get_instance(o).map(|i| i.process(self.id, data)));
                 //     // Ok(())
                 // }
+                _ => Err(ws::Error::new(
+                    ws::ErrorKind::Protocol,
+                    "Unrecognized data",
+                )),
                 Err(_) => Err(ws::Error::new(
                     ws::ErrorKind::Protocol,
                     "Unparsable data sent",

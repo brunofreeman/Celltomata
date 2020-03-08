@@ -3,6 +3,7 @@ use std::cell::RefCell;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt::{self, Formatter, Write};
 use uuid::Uuid;
+use crate::data::{TileType, Unit, Position};
 
 static ALL_OFFSETS: [(isize, isize); 8] = [
     (-1, 0),
@@ -14,12 +15,14 @@ static ALL_OFFSETS: [(isize, isize); 8] = [
     (1, 1),
     (-1, 1),
 ];
-// static ORTH_OFFSETS: [(isize, isize); 4] = [(0, -1), (-1, 0), (1, 0), (0, 1)];
 
 const X_SIZE: usize = 10;
 const Y_SIZE: usize = 10;
 
-const MAX_HEALTH: usize = 10;
+const MAX_HP: u32 = 8;
+const MAX_AM: u32 = 8;
+const ATK_DMG: u32 = 4;
+const GRD_DMG: u32 = 3;
 
 #[derive(Clone)]
 pub struct Board {
@@ -45,13 +48,6 @@ impl fmt::Display for Board {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq)]
-pub struct Unit {
-    pub tile: TileType,
-    pub team: Uuid,
-    pub hp: usize,
-}
-
 impl fmt::Display for Unit {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         self.tile.fmt(f)
@@ -60,28 +56,32 @@ impl fmt::Display for Unit {
 
 impl Unit {
     const EMPTY: Unit = Unit {
-        tile: TileType::Empty,
+        tile: TileType::EMPTY,
         team: Uuid::nil(),
         hp: 0,
+        am: 0,
+        target_pos: Some(Position::new(0, 0))
     };
 
     pub fn new_queen(team_id: Uuid) -> Unit {
         Unit {
-            tile: TileType::Queen,
+            tile: TileType::QUEEN,
             team: team_id,
-            hp: 10,
+            hp: MAX_HP,
+            ..Default::default()
         }
     }
 
     pub fn spawn_base(&self) -> Unit {
-        self.spawn_unit(TileType::Base, 3)
+        self.spawn_unit(TileType::BASE, 3)
     }
 
-    pub fn spawn_unit(&self, tile: TileType, hp: usize) -> Unit {
+    pub fn spawn_unit(&self, tile: TileType, hp: u32) -> Unit {
         Unit {
             tile,
             team: self.team,
             hp,
+            ..Default::default()
         }
     }
 
@@ -94,34 +94,25 @@ impl Unit {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.tile == TileType::Empty
+        self.tile == TileType::EMPTY
     }
 }
 
-#[serde(tag = "tile_type")]
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub enum TileType {
-    Empty,
-    Base,
-    Spawner,
-    Feeder,
-    Bolsterer,
-    Guard,
-    Attacker,
-    Queen,
+impl Default for Unit {
+    fn default() -> Self { Self::EMPTY }
 }
 
 impl fmt::Display for TileType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            TileType::Empty => " ",
-            TileType::Base => "b",
-            TileType::Spawner => "S",
-            TileType::Feeder => "F",
-            TileType::Bolsterer => "B",
-            TileType::Guard { .. } => "G",
-            TileType::Attacker { .. } => "A",
-            TileType::Queen => "Q",
+            TileType::EMPTY => " ",
+            TileType::BASE => "b",
+            TileType::SPAWNER => "S",
+            TileType::FEEDER => "F",
+            TileType::BOLSTER => "B",
+            TileType::GUARD { .. } => "G",
+            TileType::ATTACK { .. } => "A",
+            TileType::QUEEN => "Q",
         }
         .fmt(f)
     }
@@ -132,17 +123,6 @@ pub struct Metadata {
     target_pos: Position,
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
-pub struct Position {
-    pub x: usize,
-    pub y: usize,
-}
-
-impl Position {
-    pub fn new(x: usize, y: usize) -> Self {
-        Self { x, y }
-    }
-}
 
 impl Board {
     pub fn new() -> Self {
@@ -248,9 +228,10 @@ impl Board {
     }
 
     pub fn next(&mut self) {
-        self.queen_gen();
+        // self.queen_gen();
         self.feeder_gen();
         self.bolster_gen();
+        self.guard_gen();
         self.attacker_gen();
     }
 
@@ -258,7 +239,7 @@ impl Board {
         let mut new_board = self.clone();
 
         // Queen will fill one cell as close to itself as possible with a base unit (equidistant is chosen randomly)
-        if let Some(vec) = self.types.get(&TileType::Queen) {
+        if let Some(vec) = self.types.get(&TileType::QUEEN) {
             for &queen_pos in vec {
                 if let Some(base_pos) = self.nearest_unoccupied_position(queen_pos, 5) {
                     new_board.set(base_pos, self.get(queen_pos).spawn_base())
@@ -288,13 +269,13 @@ impl Board {
         'z: for (team_id, list) in &self.teams {
             for &pos in list
                 .iter()
-                .filter(|&&pos| !self.within_friendly_range(pos, TileType::Feeder, 5))
-                .filter(|&&pos| self.get(pos).tile != TileType::Feeder)
+                .filter(|&&pos| !self.within_friendly_range(pos, TileType::FEEDER, 5))
+                .filter(|&&pos| self.get(pos).tile != TileType::FEEDER)
             {
                 let unit = new_board.get_mut(pos);
                 unit.hp = unit.hp.saturating_sub(1);
                 if unit.hp == 0 {
-                    if unit.tile == TileType::Queen {
+                    if unit.tile == TileType::QUEEN {
                         let team = unit.team;
                         new_board.kill_team(team);
                         continue 'z;
@@ -318,38 +299,96 @@ impl Board {
         for (team_id, list) in &self.teams {
             for &pos in list
                 .iter()
-                .filter(|&&pos| self.within_friendly_range(pos, TileType::Bolsterer, 5))
+                .filter(|&&pos| self.within_friendly_range(pos, TileType::BOLSTER, 5))
             {
                 let unit = new_board.get_mut(pos);
-                unit.hp = unit.hp.saturating_add(1);
-                if unit.hp > MAX_HEALTH {
-                    unit.hp = MAX_HEALTH;
+                unit.am = unit.am.saturating_add(1);
+                if unit.am > MAX_AM {
+                    unit.am = MAX_AM;
                 }
             }
         }
         *self = new_board;
     }
 
+    fn guard_gen(&mut self) {
+        let mut new_board = self.clone();
+
+        if let Some(vec) = self.types.get(&TileType::GUARD) {
+            for &guard_pos in vec {
+                if let Some(enemy_pos) = self.nearest_enemy_position(guard_pos, 3) {
+                    if self.is_adj_position(guard_pos, enemy_pos) {
+                        let target_unit = new_board.get_mut(enemy_pos);
+
+                        if target_unit.am != 0 {
+                            if target_unit.am < ATK_DMG {
+                                target_unit.hp = target_unit.hp.saturating_sub(GRD_DMG - target_unit.am);
+                                target_unit.am = 0;
+                            } else {
+                                target_unit.am = target_unit.am.saturating_sub(GRD_DMG);
+                            }
+                        } else {
+                            target_unit.hp = target_unit.hp.saturating_sub(GRD_DMG);
+                        }
+
+                        if target_unit.hp == 0 {
+                            if target_unit.tile == TileType::QUEEN {
+                                let team = target_unit.team;
+                                new_board.kill_team(team);
+                            }
+                            new_board.move_unit(guard_pos, enemy_pos);
+                        }
+                    } else {
+                        let target = self.adj_position_towards(guard_pos, enemy_pos);
+                        new_board.move_unit(guard_pos, target);
+                    }
+                } else {
+                    let target_pos = self.get(guard_pos).target_pos.unwrap();
+                    if guard_pos != target_pos {
+                        let target = self.adj_position_towards(guard_pos, target_pos);
+                        if self.get(target).is_empty() {
+                            new_board.move_unit(guard_pos, target);
+                        }
+                    }
+                }
+            }
+        }
+
+        *self = new_board;
+    }
+
     fn attacker_gen(&mut self) {
         let mut new_board = self.clone();
 
-        if let Some(vec) = self.types.get(&TileType::Attacker) {
+        if let Some(vec) = self.types.get(&TileType::ATTACK) {
             for &attacker_pos in vec {
                 if let Some(enemy_pos) = self.nearest_enemy_position(attacker_pos, 5) {
                     if self.is_adj_position(attacker_pos, enemy_pos) {
                         let target_unit = new_board.get_mut(enemy_pos);
-                        target_unit.hp = target_unit.hp.saturating_sub(4);
+                        
+                        if target_unit.am != 0 {
+                            if target_unit.am < ATK_DMG {
+                                target_unit.hp = target_unit.hp.saturating_sub(ATK_DMG - target_unit.am);
+                                target_unit.am = 0;
+                            } else {
+                                target_unit.am = target_unit.am.saturating_sub(ATK_DMG);
+                            }
+                        } else {
+                            target_unit.hp = target_unit.hp.saturating_sub(ATK_DMG);
+                        }
+
                         if target_unit.hp == 0 {
-                            if target_unit.tile == TileType::Queen {
+                            if target_unit.tile == TileType::QUEEN {
                                 let team = target_unit.team;
                                 new_board.kill_team(team);
-                                // continue 'z;
                             }
                             new_board.move_unit(attacker_pos, enemy_pos);
                         }
                     } else {
                         let target = self.adj_position_towards(attacker_pos, enemy_pos);
-                        new_board.move_unit(attacker_pos, target);
+                        if self.get(target).is_empty() {
+                            new_board.move_unit(attacker_pos, target);
+                        }
                     }
                 }
             }

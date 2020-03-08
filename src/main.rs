@@ -11,12 +11,13 @@ extern crate log;
 extern crate env_logger;
 
 mod board;
-mod msg;
+mod data;
 mod server;
 mod utils;
 
 use board::*;
 use uuid::Uuid;
+use data::{TileType, Unit, Position};
 
 fn main() -> ws::Result<()> {
     let mut board = board::Board::new();
@@ -24,31 +25,64 @@ fn main() -> ws::Result<()> {
     let team_1 = Uuid::new_v4();
 
     board.set(
-        board::Position { x: 5, y: 5 },
+        Position { x: 5, y: 5 },
         Unit::new_queen(team_1),
     );
 
     board.set(
-        board::Position { x: 8, y: 8 },
+        Position { x: 8, y: 8 },
         Unit {
             hp: 1,
-            tile: TileType::Feeder,
+            tile: TileType::FEEDER,
             team: team_1,
+            ..Default::default()
+        },
+    );
+    board.set(
+        Position { x: 4, y: 6 },
+        Unit {
+            hp: 600,
+            tile: TileType::GUARD,
+            team: team_1,
+            ..Default::default()
+        },
+    );
+    board.set(
+        Position { x: 8, y: 7 },
+        Unit {
+            hp: 1,
+            tile: TileType::BOLSTER,
+            team: team_1,
+            ..Default::default()
+        },
+    );
+
+    let team_2 = Uuid::new_v4();
+
+    board.set(
+        Position { x: 0, y: 9 },
+        Unit {
+            hp: 10,
+            tile: TileType::ATTACK,
+            team: team_2,
+            ..Default::default()
         },
     );
 
     board.set(
-        board::Position { x: 0, y: 9 },
+        Position { x: 1, y: 9 },
         Unit {
-            hp: 5,
-            tile: TileType::Attacker,
-            team: Uuid::new_v4(),
+            hp: 10,
+            tile: TileType::ATTACK,
+            team: team_2,
+            ..Default::default()
         },
     );
+    
 
     for _ in 0..60 {
         board.next();
-        std::thread::sleep(std::time::Duration::from_millis(100));
+        std::thread::sleep(std::time::Duration::from_millis(200));
         println!("{}", board);
         // board.get(board::Position { x: 5, y: 5 }).map(|u| println!("{}", u));
     }
